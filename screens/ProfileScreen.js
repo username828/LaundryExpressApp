@@ -1,9 +1,15 @@
-import { Button, StyleSheet, Text, View } from 'react-native';
-import React, { useState, useEffect } from 'react';
-import { getAuth } from 'firebase/auth';
-import { db } from '../firebaseConfig';
-import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
-import { useNavigation } from '@react-navigation/core';
+import { Button, StyleSheet, Text, View } from "react-native";
+import React, { useState, useEffect } from "react";
+import { getAuth } from "firebase/auth";
+import { db } from "../firebaseConfig";
+import {
+  getFirestore,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
+import { useNavigation } from "@react-navigation/core";
 
 const ProfileScreen = () => {
   const auth = getAuth();
@@ -18,8 +24,8 @@ const ProfileScreen = () => {
         try {
           // Query Firestore for the user document based on `customerId` (assumed to be `uid`)
           const profileQuery = query(
-            collection(db, 'customers'),
-            where('email', '==', user.email) // Searching by customerId
+            collection(db, "customers"),
+            where("email", "==", user.email) // Searching by customerId
           );
 
           const querySnapshot = await getDocs(profileQuery);
@@ -29,10 +35,10 @@ const ProfileScreen = () => {
             const profileDoc = querySnapshot.docs[0];
             setProfile(profileDoc.data());
           } else {
-            alert('No profile data found');
+            alert("No profile data found");
           }
         } catch (error) {
-          console.error('Error fetching profile data:', error);
+          console.error("Error fetching profile data:", error);
         }
       }
     };
@@ -48,7 +54,7 @@ const ProfileScreen = () => {
     );
   }
 
-  const navigation=useNavigation();
+  const navigation = useNavigation();
   return (
     <View style={styles.container}>
       <View style={styles.profileContainer}>
@@ -56,7 +62,10 @@ const ProfileScreen = () => {
         <Text style={styles.email}>{profile.email}</Text>
       </View>
 
-        <Button title="View Orders" onPress={()=>navigation.navigate("Orders")}></Button>
+      <Button
+        title="View Orders"
+        onPress={() => navigation.navigate("Orders")}
+      ></Button>
     </View>
   );
 };
@@ -64,25 +73,42 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    backgroundColor: '#fff',
+    padding: 20,
+    backgroundColor: "#f0f4f8",
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 20,
+  },
+  infoContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   profileContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 24,
   },
   name: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   email: {
     fontSize: 16,
-    color: '#777',
+    color: "#777",
   },
 });
 

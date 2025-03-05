@@ -1,15 +1,25 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, FlatList,Button } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import React, { useState } from "react";
+import { StyleSheet, Text, View, FlatList, Button } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 const TrackOrderScreen = () => {
   const navigation = useNavigation();
   const [orderSteps] = useState([
-    { id: '1', label: 'Order Confirmed', time: '1 Dec 2024, 04:25 PM', icon: 'checkmark-circle' },
-    { id: '2', label: 'Picked Up', time: '1 Dec 2024, 05:25 PM', icon: 'cube' },
-    { id: '3', label: 'In Progress', time: '1 Dec 2024, 08:25 PM', icon: 'shirt' },
-    { id: '4', label: 'Dispatched', time: '2 Dec 2024, 09:00 AM', icon: 'bus' },
-    { id: '5', label: 'Delivered', time: '2 Dec 2024, 06:25 AM', icon: 'home' },
+    {
+      id: "1",
+      label: "Order Confirmed",
+      time: "1 Dec 2024, 04:25 PM",
+      icon: "checkmark-circle",
+    },
+    { id: "2", label: "Picked Up", time: "1 Dec 2024, 05:25 PM", icon: "cube" },
+    {
+      id: "3",
+      label: "In Progress",
+      time: "1 Dec 2024, 08:25 PM",
+      icon: "shirt",
+    },
+    { id: "4", label: "Dispatched", time: "2 Dec 2024, 09:00 AM", icon: "bus" },
+    { id: "5", label: "Delivered", time: "2 Dec 2024, 06:25 AM", icon: "home" },
   ]);
 
   return (
@@ -25,9 +35,11 @@ const TrackOrderScreen = () => {
               <Ionicons
                 name={item.icon}
                 size={24}
-                color={index === orderSteps.length - 1 ? '#757575' : '#007bff'}
+                color={index === orderSteps.length - 1 ? "#757575" : "#007bff"}
               />
-              {index !== orderSteps.length - 1 && <View style={styles.verticalLine} />}
+              {index !== orderSteps.length - 1 && (
+                <View style={styles.verticalLine} />
+              )}
             </View>
             <View style={styles.stepDetails}>
               <Text style={styles.stepLabel}>{item.label}</Text>
@@ -37,7 +49,10 @@ const TrackOrderScreen = () => {
         )}
       />
 
-      <Button title='Give a Rating' onPress={()=>navigation.navigate('Rating')}/>
+      <Button
+        title="Give a Rating"
+        onPress={() => navigation.navigate("Rating")}
+      />
       {/* <View style={styles.orderDetails}>
         <Text style={styles.sectionTitle}>Order Details</Text>
         <Text style={styles.orderItem}>3 X T-Shirt (Men)</Text>
@@ -52,36 +67,33 @@ const TrackOrderScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    marginTop: 50,
+    padding: 20,
+    backgroundColor: "#f0f4f8",
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333333',
-    marginBottom: 5,
-    textAlign: 'center',
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 20,
   },
   orderId: {
     fontSize: 16,
-    color: '#555555',
+    color: "#555555",
     marginBottom: 20,
   },
   stepContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     marginBottom: 20,
   },
   iconContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginRight: 15,
   },
   verticalLine: {
     width: 2,
     height: 30,
-    backgroundColor: '#d3d3d3',
+    backgroundColor: "#d3d3d3",
     marginVertical: 5,
   },
   stepDetails: {
@@ -89,29 +101,40 @@ const styles = StyleSheet.create({
   },
   stepLabel: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333333',
+    fontWeight: "600",
+    color: "#333333",
   },
   stepTime: {
     fontSize: 14,
-    color: '#777777',
+    color: "#777777",
   },
   orderDetails: {
     marginTop: 30,
     borderTopWidth: 1,
-    borderTopColor: '#eeeeee',
+    borderTopColor: "#eeeeee",
     paddingTop: 15,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333333',
+    fontWeight: "600",
+    color: "#333333",
     marginBottom: 10,
   },
   orderItem: {
     fontSize: 16,
-    color: '#555555',
+    color: "#555555",
     marginBottom: 5,
+  },
+  orderInfo: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
 });
 

@@ -1,84 +1,111 @@
-import { signInWithEmailAndPassword,createUserWithEmailAndPassword, signInWithPhoneNumber } from 'firebase/auth';
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, TouchableOpacity } from 'react-native';
-import { auth } from '../firebaseConfig';
-import { NavigationContainer } from '@react-navigation/native';
-import { addCustomer } from '../helpers/data';
-const AuthScreen = ({navigation}) => {
-  // State to manage whether we're showing the login or register form
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+} from "react-native";
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+} from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, firestore } from "../firebaseConfig";
+import { useNavigation } from "@react-navigation/core";
+
+const AuthScreen = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const fbauth=auth;
-  const handleToggle = () => {
-    setIsLogin(!isLogin); // Toggle between login and register
-  };
+  const navigation = useNavigation();
+
+  const handleToggle = () => setIsLogin(!isLogin);
 
   const handleLogin = async (email, password) => {
-    // Placeholder for login logic (e.g., Firebase Authentication)
-    try{
-      const res=await signInWithEmailAndPassword(fbauth,email,password)
-      
-      console.log("Logging in with:", email, password);
-      navigation.navigate('Main'); // Navigate to the TabNavigator
-    } catch(error){
-      alert(`Login failed: ${error.message}`)
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      console.log("Logged in with:", email);
+      navigation.navigate("Main");
+    } catch (error) {
+      alert(`Login failed: ${error.message}`);
     }
   };
-  
 
-  const handleRegister = async (name,email, password) => {
-    try{
-      const res=await createUserWithEmailAndPassword(fbauth, email, password);
-      const uid=res.user.uid
-      console.log(uid)
-      // Placeholder for registration logic (e.g., Firebase Authentication)
-      await addCustomer(name,email,password,uid)
-      console.log("Registering with:", email, password);
-    } catch(error){
+  const handleRegister = async ({ name, email, password }) => {
+    try {
+      const res = await createUserWithEmailAndPassword(auth, email, password);
+      const userId = res.user.uid;
+
+      // Save user details to Firestore
+      await setDoc(doc(firestore, "users", userId), {
+        name,
+        email,
+        rating: 0,
+        image: "https://example.com/default-image.png", // Placeholder image
+      });
+
+      console.log("Registered successfully:", name, email);
+      alert("Registration successful!");
+    } catch (error) {
       alert(`Sign Up Failed: ${error.message}`);
     }
-
   };
 
   return (
-    <View style={styles.container}>
-      {/* Tab Buttons for Switching Between Login and Register */}
+    <ScrollView contentContainerStyle={styles.container}>
+      {/* Tab Buttons */}
       <View style={styles.tabContainer}>
-        <TouchableOpacity onPress={handleToggle} style={isLogin ? styles.activeTab : styles.inactiveTab}>
+        <TouchableOpacity
+          onPress={handleToggle}
+          style={isLogin ? styles.activeTab : styles.inactiveTab}
+        >
           <Text style={styles.tabText}>Login</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleToggle} style={!isLogin ? styles.activeTab : styles.inactiveTab}>
+        <TouchableOpacity
+          onPress={handleToggle}
+          style={!isLogin ? styles.activeTab : styles.inactiveTab}
+        >
           <Text style={styles.tabText}>Register</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Render Login or Register Form Based on Tab */}
+      {/* Render Forms */}
       {isLogin ? (
         <LoginForm onSubmit={handleLogin} />
       ) : (
         <RegisterForm onSubmit={handleRegister} />
       )}
-    </View>
+    </ScrollView>
   );
 };
 
 // Login Form Component
 const LoginForm = ({ onSubmit }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [phoneNum,setPhoneNum]=useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
+  const handleForgotPassword = async () => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert("Password reset email sent!");
+    } catch (error) {
+      alert(`Error: ${error.message}`);
+    }
+  };
 
   return (
     <View style={styles.formContainer}>
-      <Text>Email</Text>
+      <Text style={styles.label}>Email</Text>
       <TextInput
         style={styles.input}
-        placeholder="Email"
+        placeholder="Your email"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
       />
-      <Text>Password</Text>
+      <Text style={styles.label}>Password</Text>
       <TextInput
         style={styles.input}
         placeholder="Password"
@@ -86,36 +113,52 @@ const LoginForm = ({ onSubmit }) => {
         onChangeText={setPassword}
         secureTextEntry
       />
-      <Button title="Login" onPress={() => onSubmit(email, password)} />
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => onSubmit(email, password)}
+      >
+        <Text style={styles.buttonText}>Login</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={handleForgotPassword}>
+        <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+      </TouchableOpacity>
     </View>
   );
 };
 
 // Register Form Component
 const RegisterForm = ({ onSubmit }) => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const handleSubmit = () => {
+    if (password !== confirmPassword) {
+      alert("Passwords do not match!");
+      return;
+    }
+    onSubmit({ name, email, password });
+  };
 
   return (
     <View style={styles.formContainer}>
-      <Text>Name</Text>
+      <Text style={styles.label}>Name</Text>
       <TextInput
         style={styles.input}
-        placeholder="Name"
+        placeholder="Your name"
         value={name}
         onChangeText={setName}
       />
-        <Text>Email</Text>
+      <Text style={styles.label}>Email</Text>
       <TextInput
         style={styles.input}
-        placeholder="Email"
+        placeholder="Your email"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
       />
-      <Text>Password</Text>
+      <Text style={styles.label}>Password</Text>
       <TextInput
         style={styles.input}
         placeholder="Password"
@@ -123,7 +166,7 @@ const RegisterForm = ({ onSubmit }) => {
         onChangeText={setPassword}
         secureTextEntry
       />
-      <Text>Confirm Password</Text>
+      <Text style={styles.label}>Confirm Password</Text>
       <TextInput
         style={styles.input}
         placeholder="Confirm Password"
@@ -131,7 +174,9 @@ const RegisterForm = ({ onSubmit }) => {
         onChangeText={setConfirmPassword}
         secureTextEntry
       />
-      <Button title="Register" onPress={() => onSubmit(name,email, password)} />
+      <TouchableOpacity style={styles.button} onPress={handleSubmit}>
+        <Text style={styles.buttonText}>Register</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -139,45 +184,66 @@ const RegisterForm = ({ onSubmit }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-    backgroundColor: '#f9f9f9',
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    backgroundColor: "#f9f9f9",
   },
   tabContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 20,
     borderBottomWidth: 2,
-    borderColor: '#ddd',
+    borderColor: "#ddd",
   },
   activeTab: {
     flex: 1,
     padding: 10,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   inactiveTab: {
     flex: 1,
     padding: 10,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: "#e0e0e0",
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   tabText: {
-    color: 'black',
+    color: "black",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   formContainer: {
     marginBottom: 20,
   },
+  label: {
+    fontSize: 16,
+    marginBottom: 5,
+  },
   input: {
     height: 45,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderWidth: 1,
     borderRadius: 8,
     marginBottom: 15,
     paddingHorizontal: 10,
+  },
+  button: {
+    backgroundColor: "#007BFF",
+    borderRadius: 8,
+    paddingVertical: 15,
+    alignItems: "center",
+    width: "100%",
+  },
+  buttonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  forgotPasswordText: {
+    color: "#007BFF",
+    marginTop: 10,
+    textAlign: "center",
   },
 });
 
