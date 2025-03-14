@@ -24,7 +24,7 @@ const SPAuthScreen = () => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       console.log('Logged in with:', email);
-      navigation.navigate('Main');
+      navigation.navigate('ServiceProviderHome');
     } catch (error) {
       alert(`Login failed: ${error.message}`);
     }

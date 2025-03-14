@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import Orders from '../components/Orders';
-import { getOrders } from '../helpers/data';
+import { getOrdersByUser} from '../helpers/data';
+import { getAuth } from "firebase/auth";
+
+const auth = getAuth(); // Initialize Firebase Auth
 const OrderScreen = () => {
   const [orders, setOrders] = useState([]);
   const [activeTab, setActiveTab] = useState('current'); // Default to 'current' tab
-
+  console.log(auth.currentUser?.uid)
   useEffect(() => {
-    const fetchOrders = async () => {
-      const ordersData = await getOrders(); // Fetch orders from Firebase or service
+    const fetchOrders = async () => {      
+      const ordersData = await getOrdersByUser(auth.currentUser?.uid); // Fetch orders from Firebase or service
       setOrders(ordersData);
     };
 
@@ -17,7 +20,7 @@ const OrderScreen = () => {
 
   // Filter orders based on the status and active tab
   const filteredOrders = orders.filter(order => 
-    activeTab === 'current' ? order.status === 'pending' : order.status === 'completed'
+    activeTab === 'current' ? order.status === 'Pending' : order.status === 'Completed'
   );
 
   return (
@@ -54,6 +57,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
+    margin:15,
     backgroundColor: '#f4f4f4',
   },
   tabContainer: {
@@ -78,6 +82,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: 'blue',
   },
   ordersContainer: {
     flex: 1,

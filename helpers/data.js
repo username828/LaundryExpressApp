@@ -1,5 +1,5 @@
 import { db } from '../firebaseConfig';
-import { doc, setDoc, collection,getDocs,query } from 'firebase/firestore';
+import { doc, setDoc, collection,getDocs,query,where} from 'firebase/firestore';
 import { firestore } from '../firebaseConfig';
 
 export const addTestData = async () => {
@@ -69,12 +69,12 @@ export const addCustomer =async(name,email,password,uid)=>{
 }
 
 
-export const getOrders = async () => {
-  const q = query(collection(firestore, 'orders'));
+export const getOrdersByUser = async (userId) => {
+  const q = query(
+    collection(firestore, 'orders'),
+    where('customerId', '==', userId) // Filter orders by user ID
+  );
+  
   const querySnapshot = await getDocs(q);
-  const ordersData = querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
-  return ordersData;
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };

@@ -1,117 +1,242 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, FlatList,Button } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  FlatList,
+  ActivityIndicator,
+  Button,
+  ScrollView
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-const TrackOrderScreen = () => {
+import { firestore } from '../firebaseConfig';
+import { doc, onSnapshot } from 'firebase/firestore';
+
+const TrackOrderScreen = ({ route }) => {
   const navigation = useNavigation();
-  const [orderSteps] = useState([
-    { id: '1', label: 'Order Confirmed', time: '1 Dec 2024, 04:25 PM', icon: 'checkmark-circle' },
-    { id: '2', label: 'Picked Up', time: '1 Dec 2024, 05:25 PM', icon: 'cube' },
-    { id: '3', label: 'In Progress', time: '1 Dec 2024, 08:25 PM', icon: 'shirt' },
-    { id: '4', label: 'Dispatched', time: '2 Dec 2024, 09:00 AM', icon: 'bus' },
-    { id: '5', label: 'Delivered', time: '2 Dec 2024, 06:25 AM', icon: 'home' },
-  ]);
+  const { orderId,providerId } = route.params;
+
+  const [orderSteps, setOrderSteps] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentStep, setCurrentStep] = useState(null);
+
+  // Order steps
+  const allSteps = [
+    { id: 'ordered', label: 'Order Placed', icon: 'checkmark-circle-outline' },
+    { id: 'pickedUp', label: 'Picked Up', icon: 'cart' },
+    { id: 'washing', label: 'Washing', icon: 'water' },
+    { id: 'ironing', label: 'Ironing', icon: 'shirt' },
+    { id: 'dispatched', label: 'Out for Delivery', icon: 'bus' },
+    { id: 'delivered', label: 'Delivered', icon: 'home' },
+  ];
+
+  useEffect(() => {
+    const orderRef = doc(firestore, 'orders', orderId);
+    const unsubscribe = onSnapshot(orderRef, (doc) => {
+      if (doc.exists()) {
+        const orderData = doc.data();
+        const activeStepIndex = allSteps.findIndex(step => step.label === orderData.status);
+        const steps = allSteps.map((step, index) => ({
+          ...step,
+          completed: index <= activeStepIndex,
+        }));
+        setOrderSteps(steps);
+        setCurrentStep(orderData.status);
+      } else {
+        setOrderSteps([]);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [orderId]);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Track Order</Text>
-      <Text style={styles.orderId}>Order #LDR0215AA1</Text>
-      <FlatList
-        data={orderSteps}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => (
-          <View style={styles.stepContainer}>
-            <View style={styles.iconContainer}>
-              <Ionicons
-                name={item.icon}
-                size={24}
-                color={index === orderSteps.length - 1 ? '#757575' : '#007bff'}
-              />
-              {index !== orderSteps.length - 1 && <View style={styles.verticalLine} />}
-            </View>
-            <View style={styles.stepDetails}>
-              <Text style={styles.stepLabel}>{item.label}</Text>
-              <Text style={styles.stepTime}>{item.time}</Text>
-            </View>
-          </View>
-        )}
-      />
+      <Text style={styles.title}>Track Your Order</Text>
+      <Text style={styles.orderId}>Order ID: {orderId}</Text>
 
-      <Button title='Give a Rating' onPress={()=>navigation.navigate('Rating')}/>
-      {/* <View style={styles.orderDetails}>
-        <Text style={styles.sectionTitle}>Order Details</Text>
-        <Text style={styles.orderItem}>3 X T-Shirt (Men)</Text>
-        <Text style={styles.orderItem}>2 X Jeans (Men)</Text>
-        <Text style={styles.orderItem}>1 X Sneakers</Text>
-        <Text style={styles.orderItem}>1 X Jacket (Men)</Text>
-      </View> */}
+      {loading ? (
+        <ActivityIndicator size="large" color="#007AFF" style={{ marginTop: 20 }} />
+      ) : (
+        <ScrollView style={styles.scrollView} >
+          {/* Timeline Progress */}
+          <FlatList
+            data={orderSteps}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item, index }) => (
+              <View style={styles.stepContainer}>
+                {/* Progress Indicator */}
+                <View style={styles.timeline}>
+                  <Ionicons
+                    name={item.icon}
+                    size={26}
+                    color={item.completed ? "#007AFF" : "#B0BEC5"}
+                  />
+                  {index !== orderSteps.length - 1 && (
+                    <View style={[styles.line, item.completed && styles.completedLine]} />
+                  )}
+                </View>
+
+                {/* Step Details */}
+                <View style={styles.stepDetails}>
+                  <Text style={[styles.stepLabel, item.completed && styles.completedText]}>
+                    {item.label}
+                  </Text>
+                  <Text style={styles.stepTime}>{item.time || "Pending"}</Text>
+                </View>
+              </View>
+            )}
+          />
+
+          {/* Current Status */}
+          <View style={styles.statusContainer}>
+            <Text style={styles.statusText}>Current Status:</Text>
+            <Text style={[styles.statusValue, getStatusStyle(currentStep)]}>
+              {currentStep || "Pending"}
+            </Text>
+          </View>
+
+          {/* Estimated Delivery Time */}
+          <View style={styles.footer}>
+            <Text style={styles.estimatedTime}>
+              Estimated Delivery: {orderSteps.find(step => step.id === 'delivered')?.time || "Pending"}
+            </Text>
+          </View>
+
+          {/* Rating Button - Only visible when order is Delivered */}
+          
+            <View style={styles.buttonContainer}>
+              <Button
+                title="Give a Rating"
+                color="#007AFF"
+                onPress={() => navigation.navigate("Rating", { orderId,providerId })}
+              />
+            </View>
+          
+        </ScrollView>
+      )}
     </View>
   );
+};
+
+// Get Status Style Based on Current Step
+const getStatusStyle = (currentStep) => {
+  switch (currentStep) {
+    case "Order Placed":
+      return { color: "#555" };
+    case "Picked Up":
+      return { color: "#FFA500" };
+    case "Washing":
+      return { color: "#4682B4" };
+    case "Ironing":
+      return { color: "#8B4513" };
+    case "Out for Delivery":
+      return { color: "#FF4500" };
+    case "Delivered":
+      return { color: "#008000" };
+    default:
+      return { color: "gray" };
+  }
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    marginTop: 50,
+    padding: 20,
+    backgroundColor: '#f8f8f8',
+  },
+  scrollView: {
+    marginTop: 10,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#333333',
-    marginBottom: 5,
-    textAlign: 'center',
+    textAlign: "center",
+    marginBottom: 10,
   },
   orderId: {
-    fontSize: 16,
-    color: '#555555',
-    marginBottom: 20,
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: 10,
+    color: "#555",
   },
   stepContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 25,
   },
-  iconContainer: {
-    alignItems: 'center',
+  timeline: {
+    flexDirection: "column",
+    alignItems: "center",
     marginRight: 15,
   },
-  verticalLine: {
+  line: {
     width: 2,
     height: 30,
-    backgroundColor: '#d3d3d3',
-    marginVertical: 5,
+    backgroundColor: "#B0BEC5",
+  },
+  completedLine: {
+    backgroundColor: "#007AFF",
   },
   stepDetails: {
     flex: 1,
+    paddingLeft: 10,
   },
   stepLabel: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333333',
+    fontWeight: "600",
+    color: "#333",
+  },
+  completedText: {
+    color: "#007AFF",
   },
   stepTime: {
-    fontSize: 14,
-    color: '#777777',
+    fontSize: 12,
+    color: "#777",
+    marginTop: 4,
   },
-  orderDetails: {
-    marginTop: 30,
-    borderTopWidth: 1,
-    borderTopColor: '#eeeeee',
-    paddingTop: 15,
+  statusContainer: {
+    marginTop: 20,
+    padding: 15,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+    alignItems: "center",
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333333',
-    marginBottom: 10,
-  },
-  orderItem: {
+  statusText: {
     fontSize: 16,
-    color: '#555555',
-    marginBottom: 5,
+    fontWeight: "bold",
+    color: "#555",
+  },
+  statusValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginTop: 5,
+  },
+  footer: {
+    marginTop: 20,
+    padding: 15,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+    alignItems: "center",
+  },
+  estimatedTime: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#007AFF",
+  },
+  buttonContainer: {
+    marginTop: 20,
+    alignItems: "center",
   },
 });
 

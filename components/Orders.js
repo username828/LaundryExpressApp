@@ -1,59 +1,108 @@
-import { StyleSheet, Text, View } from 'react-native'
-import React from 'react'
+import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons'; // Import icons
 
-// The Orders component receives an order object as a prop
 const Orders = ({ order }) => {
-  return (
-    <View style={styles.orderContainer}>
-      <Text style={styles.orderId}>Order ID: {order.orderId}</Text>
-      <Text style={styles.serviceType}>Service: {order.serviceType}</Text>
-      <Text style={styles.status}>Status: {order.status}</Text>
-      <Text style={styles.price}>Price: ${order.price}</Text>
-      <Text style={styles.address}>Address: {order.address}</Text>
-      <Text style={styles.createdAt}>
-        Created At: {new Date(order.createdAt.seconds * 1000).toLocaleString()}
-      </Text>
-    </View>
-  )
-}
+  const navigation = useNavigation();
 
-export default Orders
+  return (
+    <TouchableOpacity 
+      style={styles.orderContainer} 
+      onPress={() => navigation.navigate('Track', { orderId: order.orderId, providerId: order.providerId })}
+    >
+      {/* Order ID */}
+      <View style={styles.row}>
+        <Icon name="file-document-outline" size={20} color="#007bff" />
+        <Text style={styles.orderId}> Order ID: {order.orderId}</Text>
+      </View>
+
+      {/* Service Type */}
+      <View style={styles.row}>
+        <Icon name="washing-machine" size={20} color="#28a745" />
+        <Text style={styles.serviceType}> Service: {order.serviceType}</Text>
+      </View>
+
+      {/* Status */}
+      <View style={styles.row}>
+        <Icon name="progress-clock" size={20} color={order.status === "Completed" ? "#28a745" : "#f39c12"} />
+        <Text style={[styles.status, order.status === "Completed" ? styles.completed : styles.pending]}>
+          {order.status}
+        </Text>
+      </View>
+
+      {/* Price */}
+      <View style={styles.row}>
+        <Icon name="currency-usd" size={20} color="#ff5733" />
+        <Text style={styles.price}> ${order.price}</Text>
+      </View>
+
+      {/* Address */}
+      <View style={styles.row}>
+        <Icon name="map-marker-outline" size={20} color="#6c757d" />
+        <Text style={styles.address}> {order.address}</Text>
+      </View>
+
+      {/* Date & Time */}
+      <View style={styles.row}>
+        <Icon name="calendar-clock" size={20} color="#17a2b8" />
+        <Text style={styles.createdAt}> {order.orderTime}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+export default Orders;
 
 const styles = StyleSheet.create({
   orderContainer: {
     padding: 15,
     marginBottom: 10,
-    backgroundColor: '#fff',
-    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 3,
+    borderLeftWidth: 5,
+    borderLeftColor: '#007bff',
   },
-  orderId: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  serviceType: {
-    fontSize: 16,
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginVertical: 4,
   },
+  orderId: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#007bff',
+  },
+  serviceType: {
+    fontSize: 15,
+    color: '#333',
+  },
   status: {
-    fontSize: 14,
-    color: 'gray',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  completed: {
+    color: '#28a745', // Green for completed orders
+  },
+  pending: {
+    color: '#f39c12', // Orange for pending orders
   },
   price: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginVertical: 4,
+    color: '#ff5733',
   },
   address: {
     fontSize: 14,
-    color: 'gray',
+    color: '#6c757d',
   },
   createdAt: {
-    fontSize: 12,
-    color: 'gray',
+    fontSize: 13,
+    color: '#17a2b8',
   },
-})
+});

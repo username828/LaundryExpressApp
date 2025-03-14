@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState,useContext } from "react";
 import {
   View,
   Text,
@@ -7,25 +7,22 @@ import {
   TouchableOpacity,
   Image,
   StyleSheet,
-  Alert,
   TextInput,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
-import * as Location from "expo-location";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Picker } from "@react-native-picker/picker";
 import { getDocs, collection } from "firebase/firestore";
-import { db } from "../firebaseConfig"; // Import Firestore DB
-import { useNavigation } from "@react-navigation/native";
+import { db } from "../firebaseConfig";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Location from "expo-location";
 
-// ServiceProviderCard Component
-const ServiceProviderCard = ({ provider }) => {
+import { AddressContext } from "../context/AddressContext";
+
+const ServiceProviderCard = ({ provider, isFavourite, onToggleFavorite }) => {
   const navigation = useNavigation();
-  const [isFavourite,setIsFavourite]=useState(false);
-  const handleFavourite=()=>{
-    setIsFavourite(prevState=>!prevState);
-  }
-
   return (
     <TouchableOpacity
       style={styles.card}
@@ -37,13 +34,19 @@ const ServiceProviderCard = ({ provider }) => {
     >
       <Image source={{ uri: provider.image }} style={styles.cardImage} />
       <View style={styles.cardContent}>
-        <View style={styles.providerNameContainer}>
+        <View style={styles.providerHeader}>
           <Text style={styles.providerName}>{provider.name}</Text>
-        </View>
-        <Text style={styles.rating}>Rating: {provider.rating}</Text>
-        <Pressable onPress={handleFavourite}>
-            <MaterialIcons name={isFavourite? "favorite":"favorite-outline"} size={24} color="red"/>
+          <Pressable
+            onPress={() => onToggleFavorite(provider.serviceProviderId)}
+          >
+            <MaterialIcons
+              name={isFavourite ? "favorite" : "favorite-outline"}
+              size={24}
+              color="red"
+            />
           </Pressable>
+        </View>
+        <Text style={styles.rating}>⭐ {provider.rating}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -51,32 +54,102 @@ const ServiceProviderCard = ({ provider }) => {
 
 const HomeScreen = () => {
   const [serviceProviders, setServiceProviders] = useState([]);
-  const [currentAddress, setCurrentAddress] = useState("Loading Location...");
-  const [selectedServiceType, setSelectedServiceType] = useState("");
-  const [filterOption, setFilterOption] = useState("");
-  const [sortOption, setSortOption] = useState("");
+  const [filteredProviders, setFilteredProviders] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [minRating, setMinRating] = useState("All");
+  const [selectedService, setSelectedService] = useState("All");
 
-  // Fetch service providers from Firestore
+  const [favorites, setFavorites] = useState([]);
+  const {currentAddress, setCurrentAddress} = useContext(AddressContext); // Access global address state//useState("Loading Location...");
+
+  const [loading, setLoading] = useState(true);
+
+  const navigation = useNavigation();
+
+
   useEffect(() => {
     const fetchServiceProviders = async () => {
+      setLoading(true); // Show loading
       try {
         const querySnapshot = await getDocs(collection(db, "serviceProviders"));
         const providers = querySnapshot.docs.map((doc) => doc.data());
         setServiceProviders(providers);
+        setFilteredProviders(providers);
       } catch (error) {
-        console.error("Error fetching service providers: ", error);
+        console.error("Error fetching providers:", error);
+      } finally {
+        setLoading(false); // Hide loading
       }
     };
-
     fetchServiceProviders();
+    loadFavorites();
   }, []);
 
-  // Location handling
   useEffect(() => {
+    let filtered = serviceProviders.filter((provider) =>
+      provider.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    if (minRating !== "All") {
+      filtered = filtered.filter(
+        (provider) => provider.rating >= parseFloat(minRating)
+      );
+    }
+
+    if (selectedService !== "All") {
+      filtered = filtered.filter(
+        (provider) =>
+          provider.servicesOffered?.some(
+            (service) => service.toLowerCase() === selectedService.toLowerCase()
+          ) ?? false
+      );
+    }
+
+    setFilteredProviders(filtered);
+  }, [searchQuery, minRating, serviceProviders, selectedService]);
+
+  // Load favorites from AsyncStorage
+  const loadFavorites = async () => {
+    try {
+      const storedFavorites = await AsyncStorage.getItem("favorites");
+      if (storedFavorites) {
+        setFavorites(JSON.parse(storedFavorites));
+      }
+    } catch (error) {
+      console.error("Error loading favorites:", error);
+    }
+  };
+
+  // Toggle Favorite
+  const toggleFavorite = async (providerId) => {
+    try {
+      let updatedFavorites;
+      if (favorites.includes(providerId)) {
+        updatedFavorites = favorites.filter((id) => id !== providerId);
+      } else {
+        updatedFavorites = [...favorites, providerId];
+      }
+
+      await AsyncStorage.setItem("favorites", JSON.stringify(updatedFavorites));
+      setFavorites(updatedFavorites); // Update state after storage is updated
+    } catch (error) {
+      console.error("Error updating favorites:", error);
+    }
+  };
+
+  // Location handling
+
+  const route = useRoute();
+
+  useEffect(() => {
+    if (route.params?.selectedAddress) {
+      setCurrentAddress(route.params.selectedAddress);
+    } else  {
+  
     const checkLocationEnabled = async () => {
       let enabled = await Location.hasServicesEnabledAsync();
       if (!enabled) {
-        Alert.alert("Location not Enabled", "Enable Location", [
+        alert("Location not Enabled", "Enable Location", [
           { text: "Cancel", style: "cancel" },
           { text: "OK" },
         ]);
@@ -84,17 +157,40 @@ const HomeScreen = () => {
     };
 
     const getCurrentLocation = async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Permission not Granted", "Allow Location Services", [
-          { text: "Cancel", style: "cancel" },
-          { text: "OK" },
-        ]);
-      }
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          alert("Permission not Granted", "Allow Location Services", [
+            { text: "Cancel", style: "cancel" },
+            { text: "OK" },
+          ]);
+          return;
+        }
 
-      const { coords } = await Location.getCurrentPositionAsync();
-      const address = await reverseGeocode(coords.latitude, coords.longitude);
-      setCurrentAddress(address);
+        const location = await Location.getCurrentPositionAsync();
+        console.log("Location fetched:", location);
+
+        if (!location || !location.coords) {
+          throw new Error("Location data is empty");
+        }
+
+        const address = await reverseGeocode(
+          location.coords.latitude,
+          location.coords.longitude
+        );
+        console.log("Address:", address);
+        setCurrentAddress(address);
+      } catch (error) {
+        console.error("Location Error:", error);
+        setCurrentAddress("Error fetching location");
+
+        if (
+          error.message.includes("API limit") ||
+          error.code === "E_API_LIMIT"
+        ) {
+          alert("API Limit Reached", "Try again later.");
+        }
+      }
     };
 
     const reverseGeocode = async (latitude, longitude) => {
@@ -116,419 +212,138 @@ const HomeScreen = () => {
 
     checkLocationEnabled();
     getCurrentLocation();
-  }, []);
+  }
+  }, [route.params?.selectedAddress]);
 
   return (
-    <SafeAreaView style={{ backgroundColor: "white", flex: 1 }}>
-      {/* Header with Location */}
-      <View style={{ flexDirection: "row", alignItems: "center", padding: 20 }}>
-        <MaterialIcons name="location-on" size={30} color="black" />
-        <View>
-          <Text style={{ fontSize: 10, fontWeight: "600" }}>Home</Text>
-          <Text>{currentAddress}</Text>
-        </View>
-        <Pressable style={{ marginLeft: "auto" }}>
-          <MaterialIcons name="favorite" size={24} color="red" />
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Pressable onPress={() => navigation.navigate("Map")}>
+          <MaterialIcons name="location-on" size={24} color="#2D9CDB" />
         </Pressable>
+        <View>
+          <Text style={styles.addressTitle}>{currentAddress}</Text>
+        </View>
       </View>
 
-      {/* Search Bar */}
-      <View
-        style={{
-          padding: 10,
-          margin: 10,
-          flexDirection: "row",
-          alignItems: "center",
-          borderWidth: 0.8,
-          borderRadius: 7,
-          backgroundColor: "white",
-        }}
-      >
-        <MaterialIcons name="search" size={24} color="black" />
+      <View style={styles.searchContainer}>
+        <MaterialIcons name="search" size={24} color="gray" />
         <TextInput
           placeholder="Search for Laundry Services"
-          style={{ flex: 1, marginLeft: 8 }}
+          style={styles.searchInput}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
         />
       </View>
 
-      {/* Filters and Sort Options */}
-      <View style={{ paddingHorizontal: 10, flexDirection: "row", gap: 20 }}>
-        <View style={styles.dropdownContainer}>
-          <Picker
-            selectedValue={filterOption}
-            onValueChange={(itemValue) => setFilterOption(itemValue)}
-            style={styles.picker}
-          >
-            <Picker.Item label="Filter" value="" />
-            <Picker.Item label="By Distance" value="distance" />
-            <Picker.Item label="By Rating" value="rating" />
-          </Picker>
-        </View>
+      <View style={styles.filterContainer}>
+        <Picker
+          selectedValue={minRating}
+          onValueChange={(itemValue) => setMinRating(itemValue)}
+          style={styles.picker}
+        >
+          <Picker.Item label="Sort by Rating" value="All" />
+          <Picker.Item label="3+ Stars" value="3" />
+          <Picker.Item label="4+ Stars" value="4" />
+          <Picker.Item label="5 Stars" value="5" />
+        </Picker>
 
-        <View style={styles.dropdownContainer}>
-          <Picker
-            selectedValue={sortOption}
-            onValueChange={(itemValue) => setSortOption(itemValue)}
-            style={styles.picker}
-          >
-            <Picker.Item label="Sort" value="" />
-            <Picker.Item label="Price: Low to High" value="low_to_high" />
-            <Picker.Item label="Price: High to Low" value="high_to_low" />
-          </Picker>
-        </View>
-
-        <View style={styles.dropdownContainer}>
-          <Picker
-            selectedValue={selectedServiceType}
-            onValueChange={(itemValue) => setSelectedServiceType(itemValue)}
-            style={styles.picker}
-          >
-            <Picker.Item label="Service Type" value="" />
-            <Picker.Item label="Washing" value="washing" />
-            <Picker.Item label="Laundry" value="laundry" />
-            <Picker.Item label="Wash & Iron" value="wash_iron" />
-            <Picker.Item label="Cleaning" value="cleaning" />
-          </Picker>
-        </View>
+        <Picker
+          selectedValue={selectedService}
+          onValueChange={(itemValue) => setSelectedService(itemValue)}
+          style={styles.picker}
+        >
+          <Picker.Item label="Services" value="All" />
+          <Picker.Item label="Dry Cleaning" value="Dry" />
+          <Picker.Item label="Wash & Fold" value="Washing" />
+          <Picker.Item label="Ironing" value="Ironing" />
+        </Picker>
       </View>
 
-      {/* Service Providers List */}
-      <FlatList
-        data={serviceProviders}
-        keyExtractor={(item) => item.serviceProviderId}
-        renderItem={({ item }) => <ServiceProviderCard provider={item} />}
-        contentContainerStyle={{ padding: 10 }}
-      />
+      {loading ? (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#4CAF50" />
+        </View>
+      ) : (
+        <FlatList
+          data={filteredProviders}
+          keyExtractor={(item, index) =>
+            item.serviceProviderId || index.toString()
+          }
+          renderItem={({ item }) => (
+            <ServiceProviderCard
+              provider={item}
+              isFavourite={favorites.includes(item.serviceProviderId)}
+              onToggleFavorite={toggleFavorite}
+            />
+          )}
+          contentContainerStyle={{ paddingBottom: 20 }}
+        />
+      )}
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#F9FAFB" },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  header: {
+    padding: 12,
+    margin: 10,
+    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "white",
+    elevation: 4,
+    marginTop: 25,
+  },
+  addressTitle: { fontSize: 10, fontWeight: "600", color: "gray" },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
+    margin: 10,
+    padding: 12,
+    borderRadius: 8,
+    elevation: 2,
+  },
+  searchInput: { flex: 1, marginLeft: 10, fontSize: 16 },
+  filterContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 10,
+    marginBottom: 10,
+  },
+  filterLabel: { fontSize: 14, fontWeight: "600", marginRight: 10 },
+  picker: {
+    flex: 1,
+    height: 60,
+    backgroundColor: "white",
+    borderRadius: 8,
+    maxWidth: 200,
+  },
   card: {
     flexDirection: "row",
-    padding: 16,
-    marginBottom: 16,
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 12,
+    margin: 10,
     elevation: 3,
   },
-  cardImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    marginRight: 16,
-  },
-  cardContent: {
-    justifyContent: "center",
-  },
-  providerName: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  providerNameContainer: {
+  cardImage: { width: 80, height: 80, borderRadius: 8, marginRight: 12 },
+  cardContent: { justifyContent: "center", flex: 1 },
+  providerHeader: {
     flexDirection: "row",
-    alignItems: "center", // Align text and icon vertically
-    justifyContent: "space-between", // Space between provider name and icon
-    width: "100%", // Ensure it takes full width
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-
-  favoriteIcon: {
-    marginLeft: "auto", // Push the icon to the right end
-  },
-  rating: {
-    fontSize: 14,
-    color: "#555",
-  },
-  dropdownContainer: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#aaa",
-    borderRadius: 8,
-    overflow: "hidden",
-    backgroundColor: "#f9f9f9",
-  },
-  picker: {
-    height: 50,
-    color: "black",
-  },
+  providerName: { fontSize: 16, fontWeight: "bold" },
+  rating: { fontSize: 14, color: "#555" },
 });
 
 export default HomeScreen;
-
-// import React, { useEffect, useState } from 'react';
-// import {
-//   View,
-//   Text,
-//   SafeAreaView,
-//   FlatList,
-//   TouchableOpacity,
-//   Image,
-//   StyleSheet,
-//   Alert,
-//   TextInput,
-//   Pressable,
-// } from 'react-native';
-// import * as Location from 'expo-location';
-// import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-// import { Picker } from '@react-native-picker/picker';
-// import { getDocs, collection } from 'firebase/firestore';
-// import { db } from '../firebaseConfig'; // Import Firestore DB
-// import { useNavigation } from '@react-navigation/native';
-
-// // ServiceProviderCard Component
-// const ServiceProviderCard = ({ provider }) => {
-//   const navigation = useNavigation();
-
-//   return (
-//     <TouchableOpacity
-//       style={styles.card}
-//       onPress={() =>
-//         navigation.navigate('ServiceProviderScreen', { providerId: provider.serviceProviderId })
-//       }
-//     >
-//       <Image source={{ uri: provider.image }} style={styles.cardImage} />
-//       <View style={styles.cardContent}>
-//         <Text style={styles.providerName}>{provider.name}</Text>
-//         <Text style={styles.rating}>Rating: {provider.rating}</Text>
-//       </View>
-//     </TouchableOpacity>
-//   );
-// };
-
-// const HomeScreen = () => {
-//   const [serviceProviders, setServiceProviders] = useState([]);
-//   const [filteredServiceProviders, setFilteredServiceProviders] = useState([]);
-//   const [currentAddress, setCurrentAddress] = useState('Loading Location...');
-//   const [selectedServiceType, setSelectedServiceType] = useState('');
-//   const [filterOption, setFilterOption] = useState('');
-//   const [sortOption, setSortOption] = useState('');
-
-//   // Fetch service providers from Firestore
-//   useEffect(() => {
-//     const fetchServiceProviders = async () => {
-//       try {
-//         const querySnapshot = await getDocs(collection(db, 'serviceProviders'));
-//         const providers = querySnapshot.docs.map((doc) => doc.data());
-//         setServiceProviders(providers);
-//         setFilteredServiceProviders(providers);
-//       } catch (error) {
-//         console.error('Error fetching service providers: ', error);
-//       }
-//     };
-
-//     fetchServiceProviders();
-//   }, []);
-
-//   // Apply filtering and sorting whenever filters or sort options change
-//   useEffect(() => {
-//     const applyFiltersAndSorting = () => {
-//       let filteredProviders = [...serviceProviders];
-
-//       // Filter by service type
-//       if (selectedServiceType) {
-//         filteredProviders = filteredProviders.filter(
-//           (provider) => provider.serviceType === selectedServiceType
-//         );
-//       }
-
-//       // Sort by rating
-//       if (filterOption === 'rating') {
-//         filteredProviders.sort((a, b) => b.rating - a.rating);
-//       }
-
-//       // Sort by price
-//       if (sortOption === 'low_to_high') {
-//         filteredProviders.sort((a, b) => a.price - b.price);
-//       } else if (sortOption === 'high_to_low') {
-//         filteredProviders.sort((a, b) => b.price - a.price);
-//       }
-
-//       setFilteredServiceProviders(filteredProviders);
-//     };
-
-//     applyFiltersAndSorting();
-//   }, [selectedServiceType, filterOption, sortOption, serviceProviders]);
-
-//   // Location handling
-//   useEffect(() => {
-//     const checkLocationEnabled = async () => {
-//       let enabled = await Location.hasServicesEnabledAsync();
-//       if (!enabled) {
-//         Alert.alert('Location not Enabled', 'Enable Location', [
-//           { text: 'Cancel', style: 'cancel' },
-//           { text: 'OK' },
-//         ]);
-//       }
-//     };
-
-//     const getCurrentLocation = async () => {
-//       const { status } = await Location.requestForegroundPermissionsAsync();
-//       if (status !== 'granted') {
-//         Alert.alert('Permission not Granted', 'Allow Location Services', [
-//           { text: 'Cancel', style: 'cancel' },
-//           { text: 'OK' },
-//         ]);
-//       }
-
-//       const { coords } = await Location.getCurrentPositionAsync();
-//       const address = await reverseGeocode(coords.latitude, coords.longitude);
-//       setCurrentAddress(address);
-//     };
-
-//     const reverseGeocode = async (latitude, longitude) => {
-//       try {
-//         const result = await Location.reverseGeocodeAsync({ latitude, longitude });
-//         if (result.length > 0) {
-//           const { city, region, country, name } = result[0];
-//           return `${name}, ${city}, ${region}, ${country}`;
-//         }
-//         return 'Address not found';
-//       } catch (error) {
-//         console.error('Reverse Geocoding Error:', error);
-//         return 'Error fetching address';
-//       }
-//     };
-
-//     checkLocationEnabled();
-//     getCurrentLocation();
-//   }, []);
-
-//   return (
-//     <SafeAreaView style={{ backgroundColor: 'white', flex: 1 }}>
-//       {/* Header with Location */}
-//       <View style={{ flexDirection: 'row', alignItems: 'center', padding: 20 }}>
-//         <MaterialIcons name="location-on" size={30} color="black" />
-//         <View>
-//           <Text style={{ fontSize: 10, fontWeight: '600' }}>Home</Text>
-//           <Text>{currentAddress}</Text>
-//         </View>
-//         <Pressable style={{ marginLeft: 'auto' }}>
-//           <MaterialIcons name="favorite" size={24} color="red" />
-//         </Pressable>
-//       </View>
-
-//       {/* Search Bar */}
-//       <View
-//         style={{
-//           padding: 10,
-//           margin: 10,
-//           flexDirection: 'row',
-//           alignItems: 'center',
-//           borderWidth: 0.8,
-//           borderRadius: 7,
-//           backgroundColor: 'white',
-//         }}
-//       >
-//         <MaterialIcons name="search" size={24} color="black" />
-//         <TextInput
-//           placeholder="Search for Laundry Services"
-//           style={{ flex: 1, marginLeft: 8 }}
-//         />
-//       </View>
-
-//       {/* Filters and Sort Options */}
-//       <View style={{ paddingHorizontal: 10, flexDirection: 'row', gap: 20 }}>
-//         <View style={styles.dropdownContainer}>
-//           <Picker
-//             selectedValue={filterOption}
-//             onValueChange={(itemValue) => setFilterOption(itemValue)}
-//             style={styles.picker}
-//           >
-//             <Picker.Item label="Filter" value="" />
-//             <Picker.Item label="By Rating" value="rating" />
-//           </Picker>
-//         </View>
-
-//         <View style={styles.dropdownContainer}>
-//           <Picker
-//             selectedValue={sortOption}
-//             onValueChange={(itemValue) => setSortOption(itemValue)}
-//             style={styles.picker}
-//           >
-//             <Picker.Item label="Sort" value="" />
-//             <Picker.Item label="Price: Low to High" value="low_to_high" />
-//             <Picker.Item label="Price: High to Low" value="high_to_low" />
-//           </Picker>
-//         </View>
-
-//         <View style={styles.dropdownContainer}>
-//           <Picker
-//             selectedValue={selectedServiceType}
-//             onValueChange={(itemValue) => setSelectedServiceType(itemValue)}
-//             style={styles.picker}
-//           >
-//             <Picker.Item label="Service Type" value="" />
-//             <Picker.Item label="Washing" value="washing" />
-//             <Picker.Item label="Laundry" value="laundry" />
-//             <Picker.Item label="Wash & Iron" value="wash_iron" />
-//             <Picker.Item label="Cleaning" value="cleaning" />
-//           </Picker>
-//         </View>
-//       </View>
-
-//       {/* Service Providers List */}
-//       {filteredServiceProviders.length === 0 ? (
-//         <Text style={{ textAlign: 'center', margin: 20 }}>
-//           No providers match the selected criteria.
-//         </Text>
-//       ) : (
-//         <FlatList
-//           data={filteredServiceProviders}
-//           keyExtractor={(item) => item.serviceProviderId}
-//           renderItem={({ item }) => <ServiceProviderCard provider={item} />}
-//           contentContainerStyle={{ padding: 10 }}
-//         />
-//       )}
-//     </SafeAreaView>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   card: {
-//     flexDirection: 'row',
-//     padding: 16,
-//     marginBottom: 16,
-//     backgroundColor: '#fff',
-//     borderRadius: 8,
-//     shadowColor: '#000',
-//     shadowOffset: { width: 0, height: 2 },
-//     shadowOpacity: 0.2,
-//     shadowRadius: 6,
-//     elevation: 3,
-//   },
-//   cardImage: {
-//     width: 80,
-//     height: 80,
-//     borderRadius: 8,
-//     marginRight: 16,
-//   },
-//   cardContent: {
-//     justifyContent: 'center',
-//   },
-//   providerName: {
-//     fontSize: 18,
-//     fontWeight: 'bold',
-//   },
-//   rating: {
-//     fontSize: 14,
-//     color: '#555',
-//   },
-//   dropdownContainer: {
-//     flex: 1,
-//     borderWidth: 1,
-//     borderColor: '#aaa',
-//     borderRadius: 8,
-//     overflow: 'hidden',
-//     backgroundColor: '#f9f9f9',
-//   },
-//   picker: {
-//     height: 50,
-//     color: 'black',
-//   },
-// });
-
-// export default HomeScreen;

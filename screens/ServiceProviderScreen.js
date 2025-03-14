@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, FlatList, Button } from 'react-native';
+import { 
+  View, Text, StyleSheet, Image, FlatList, TouchableOpacity, ActivityIndicator 
+} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { getDoc, doc } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
-import { ScrollView } from 'react-native-gesture-handler';
+import { MaterialCommunityIcons } from 'react-native-vector-icons';
+
+import { db } from '../firebaseConfig'; // Ensure this points to your Firebase configuration
 
 const ServiceProviderScreen = () => {
   const route = useRoute();
@@ -11,73 +14,52 @@ const ServiceProviderScreen = () => {
 
   const [providerDetails, setProviderDetails] = useState(null);
   const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const navigation = useNavigation();
+
   useEffect(() => {
     const fetchProviderDetails = async () => {
       try {
         const docRef = doc(db, 'serviceProviders', providerId);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          console.log(docSnap.data())
           setProviderDetails(docSnap.data());
-          console.log(docSnap.data().services);
-          setServices(docSnap.data().services || []);  // Set the services array
-        } else {
-          console.error('No such document!');
+          setServices(docSnap.data().services || []);
         }
+
+        //console.log(providerDetails.services)
       } catch (error) {
         console.error('Error fetching provider details: ', error);
+      } finally {
+        setTimeout(() => setLoading(false), 1000); // Simulated loading time
       }
     };
 
     fetchProviderDetails();
   }, [providerId]);
 
-  if (!providerDetails) {
+  if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Loading...</Text>
+        <ActivityIndicator size="large" color="#4CAF50" />
       </View>
     );
   }
 
-  // Data for Special Offers (hardcoded)
+  if (!providerDetails) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.errorMessage}>Service provider not found.</Text>
+      </View>
+    );
+  }
+
   const specialOffers = [
-    { id: '1', title: '20% off on first service!' },
-    { id: '2', title: 'Free pickup for orders above $50' },
-    { id: '3', title: 'Get 1 item free for every 10 items' },
+    { id: '1', title: '20% off on first service!', icon: 'percent' },
+    { id: '2', title: 'Free pickup & delivery', icon: 'truck' },
+    { id: '3', title: 'Loyalty rewards for regular customers', icon: 'gift' },
   ];
-
-  const renderProviderDetails = () => (
-    <View style={styles.header}>
-      <Image 
-        source={{ uri: providerDetails.image || 'default_image_url' }} 
-        style={styles.providerImage} 
-      />
-      <Text style={styles.providerName}>{providerDetails.name || 'Default Provider'}</Text>
-      <Text style={styles.rating}>Rating: {providerDetails.rating || 'N/A'}</Text>
-      <Text style={styles.description}>
-        {providerDetails.description || 'No description available'}
-      </Text>
-    </View>
-  );
-
-  const renderSpecialOffers = () => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Special Offers</Text>
-      {specialOffers.map((offer) => (
-        <Text key={offer.id} style={styles.offerItem}>- {offer.title}</Text>
-      ))}
-    </View>
-  );
-
-  const renderServiceItem = ({ item }) => (
-    <View style={styles.serviceItem}>
-      <Text style={styles.serviceName}>{item.name ? String(item.name) : 'Unnamed Service'}</Text>  
-      <Text style={styles.servicePrice}>{item.price ? `$${String(item.price)}` : 'Price Unavailable'}</Text>  
-    </View>
-  );
 
   const handleOrderPlacement = () => {
     navigation.navigate('OrderPlacement', {
@@ -87,104 +69,176 @@ const ServiceProviderScreen = () => {
   };
 
   return (
-    <View>
+    <View style={styles.container}>
       <FlatList
         data={[{ key: 'providerDetails' }, { key: 'specialOffers' }, { key: 'services' }]}
         renderItem={({ item }) => {
           if (item.key === 'providerDetails') {
-            return renderProviderDetails();
+            return (
+              <View style={styles.header}>
+                <Image 
+                  source={{ uri: providerDetails.image || 'https://via.placeholder.com/140' }} 
+                  style={styles.providerImage} 
+                />
+                <Text style={styles.providerName}>{providerDetails.name || 'Default Name'}</Text>
+                <Text style={styles.rating}>⭐ {providerDetails.rating || 'N/A'}</Text>
+                <Text style={styles.description}>{providerDetails.description || 'No description available'}</Text>
+              </View>
+            );
           }
+          
           if (item.key === 'specialOffers') {
-            return renderSpecialOffers();
+            return (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>🎉 Special Offers</Text>
+                {specialOffers.map((offer) => (
+                  <View key={offer.id} style={styles.offerItem}>
+                    <Text style={styles.offerText}>
+                      <Text style={{ fontSize: 18 }}>🎁</Text> {offer.title}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+              );
           }
+
           if (item.key === 'services') {
             return (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Services Offered</Text>
+                <Text style={styles.sectionTitle}>🧼 Services Offered</Text>
                 <FlatList
-                  data={services}  
+                  data={services}
                   keyExtractor={(item, index) => index.toString()}
-                  renderItem={renderServiceItem}
+                  renderItem={({ item }) => (
+                    <View style={styles.serviceItem}>
+                      {item.image ? (
+                        <Image source={{ uri: item.image }} style={styles.serviceImage} />
+                      ) : (
+                        <Text style={styles.serviceIcon}>🛁</Text>
+                      )}
+                      <View style={styles.serviceTextContainer}>
+                        <Text style={styles.serviceName}>{item.name || 'Service'}</Text>
+                        <Text style={styles.servicePrice}>💲{item.price || 'N/A'}</Text>
+                      </View>
+                    </View>
+                  )}
                 />
               </View>
             );
           }
+
+          return null;
         }}
         keyExtractor={(item) => item.key}
-        contentContainerStyle={styles.container}
       />
-      <Button title='Place Order' onPress={handleOrderPlacement}/>
-   </View>
+      <TouchableOpacity style={styles.orderButton} onPress={handleOrderPlacement}>
+        <Text style={styles.orderButtonText}>🛒 Place Order</Text>
+      </TouchableOpacity>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#f9f9f9',
-    padding: 16,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  providerImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 16,
-  },
-  providerName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  rating: {
-    fontSize: 16,
-    color: '#555',
-  },
-  description: {
-    fontSize: 14,
-    color: '#777',
-    textAlign: 'center',
-    marginTop: 8,
+    flex: 1,
+    backgroundColor: '#f5f5f5',
     paddingHorizontal: 16,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  offerItem: {
-    fontSize: 16,
-    marginBottom: 8,
-    color: '#444',
-  },
-  serviceItem: {
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  serviceName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  servicePrice: {
-    fontSize: 14,
-    color: '#888',
+    paddingBottom: 20,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  errorMessage: {
+    fontSize: 18,
+    color: '#D32F2F',
+    fontWeight: '600',
+  },
+  header: {
+    alignItems: 'center',
+    backgroundColor: '#4CAF50',
+    padding: 20,
+    borderRadius: 10,
+    marginBottom: 15,
+  },
+  providerImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    borderWidth: 3,
+    borderColor: '#fff',
+    marginBottom: 16,
+  },
+  providerName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  rating: {
+    fontSize: 18,
+    color: '#FFD700',
+    marginVertical: 5,
+  },
+  description: {
+    fontSize: 16,
+    color: '#fff',
+    textAlign: 'center',
+    marginHorizontal: 20,
+  },
+  section: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  serviceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    padding: 12,
+    borderRadius: 10,
+    marginVertical: 6,
+    shadowOpacity: 0.1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  serviceIcon: {
+    fontSize: 28,
+    marginRight: 10,
+  },
+  serviceTextContainer: {
+    marginLeft: 10,
+  },
+  serviceName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  servicePrice: {
+    fontSize: 16,
+    color: '#2E7D32',
+  },
+  orderButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 20,
+  },
+  orderButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
 
