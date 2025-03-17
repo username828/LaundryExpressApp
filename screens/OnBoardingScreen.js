@@ -1,92 +1,52 @@
 import { useNavigation } from "@react-navigation/core";
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  ImageBackground,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 
 const OnboardingScreen = () => {
-    const navigation=useNavigation()
+  const navigation = useNavigation();
   return (
+    <View style={styles.container}>
+      <Text style={styles.appName}>Laundry Express</Text>
 
-    <ImageBackground
-      source={require("../assets/logo.png")} // Replace with your background image path
-      style={styles.background}
-      resizeMode="cover" // Ensures the image covers the entire screen
-    >
-      <View style={styles.overlay}>
-        {/* App Name */}
-        <Text style={styles.appName}>Laundry Express</Text>
-
-        {/* Buttons */}
-        <TouchableOpacity
-          style={[styles.button, styles.customerButton]}
-          onPress={() => navigation.navigate("Auth")}
-        >
-          <Text style={styles.buttonText}>Continue as Customer</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, styles.providerButton]}
-          onPress={() => navigation.navigate("ServiceProviderAuth")}
-        >
-          <Text style={styles.buttonText}>Continue as Service Provider</Text>
-        </TouchableOpacity>
-      </View>
-    </ImageBackground>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => navigation.navigate("Auth")}
+      >
+        <Text style={styles.buttonText}>Continue as Customer</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => navigation.navigate("ServiceProviderAuth")}
+      >
+        <Text style={styles.buttonText}>Continue as Service Provider</Text>
+      </TouchableOpacity>
+    </View>
   );
 };
 
-export default OnboardingScreen;
-
 const styles = StyleSheet.create({
-  background: {
-    flex: 1, // Ensures the image covers the entire screen
-    justifyContent: "center", // Centers content vertically
-    alignItems: "center", // Centers content horizontally
-  },
-  overlay: {
+  container: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#333333", // Dark grey background color
     padding: 20,
-     // Semi-transparent overlay for readability
   },
   appName: {
     fontSize: 36,
     fontWeight: "bold",
-    color: "white", // White text for contrast
-    marginBottom: 20,
-    textAlign: "center",
-    fontFamily: "sans-serif-medium",
-  },
-  logo: {
-    width: 150,
-    height: 150,
+    color: "#ffffff", // White text for contrast
     marginBottom: 40,
+    textAlign: "center",
   },
   button: {
-    width: "80%",
-    paddingVertical: 20,
-    paddingHorizontal: 10,
-    borderRadius: 30,
-    marginVertical: 10,
+    backgroundColor: "#444444", // Subtle shade of dark grey for buttons
+    borderRadius: 8,
+    paddingVertical: 15,
+    paddingHorizontal: 30,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  customerButton: {
-    backgroundColor: "#4CAF50", // Green button
-  },
-  providerButton: {
-    backgroundColor: "#2196F3", // Blue button
+    marginVertical: 10, // Spacing between buttons
+    width: "100%", // Full width for buttons
   },
   buttonText: {
     color: "white",
@@ -94,3 +54,5 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
+
+export default OnboardingScreen;

@@ -1,20 +1,33 @@
 import { StyleSheet } from "react-native";
-import HomeScreen from "./screens/HomeScreen";
-import AuthScreen from "./screens/AuthScreen";
-import ServiceProviderScreen from "./screens/ServiceProviderScreen";
-import ProfileScreen from "./screens/ProfileScreen";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-import PlaceOrderScreen from "./screens/PlaceOrderScreen";
+
+//Customer Screens
+import HomeScreen from "./screens/Customer/HomeScreen";
+import AuthScreen from "./screens/Customer/AuthScreen";
+import ServiceProviderScreen from "./screens/Customer/ServiceProviderScreen";
+import ProfileScreen from "./screens/Customer/ProfileScreen";
+
+import PlaceOrderScreen from "./screens/Customer/PlaceOrderScreen";
+import OrderScreen from "./screens/Customer/OrdersScreen";
+import TrackOrderScreen from "./screens/Customer/TrackOrderScreen";
+import CustomerFeedbackScreen from "./screens/Customer/RatingScreen";
+import MapScreen from "./screens/Customer/MapScreen";
+
+
+//Other Screens
 import OnBoardingScreen from "./screens/OnBoardingScreen";
-import OrderScreen from "./screens/OrdersScreen";
+import LoadingScreen from "./screens/LoadingScreen";
+
+
+//Service Provider Screens
 import SPAuthScreen from "./screens/ServiceProvider/Auth";
-import TrackOrderScreen from "./screens/TrackOrderScreen";
-import CustomerFeedbackScreen from "./screens/RatingScreen";
-import ServiceProviderOrders from "./screens/ServiceProvider/Home";
-import MapScreen from "./screens/MapScreen";
+import SPAccountDetails from "./screens/ServiceProvider/SPAccountDetails";
+import SPServices from "./screens/ServiceProvider/SPServices";
+import ServiceProviderOptions from "./screens/ServiceProvider/ServiceProviderOptions";
+import ManageOrders from "./screens/ServiceProvider/ManageOrders";
 
 import { AddressProvider } from "./context/AddressContext"; // Import the Provider
 
@@ -56,12 +69,21 @@ export default function App() {
   return (
     <AddressProvider>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="OnBoarding">
+        <Stack.Navigator initialRouteName="Loading">
+
+          {/* Other Screens */}
+        <Stack.Screen
+          name="Loading"
+          component={LoadingScreen}
+          options={{ headerShown: false }}
+        />
           <Stack.Screen
             name="OnBoarding"
             component={OnBoardingScreen}
             options={{ headerShown: false }}
           />
+
+          {/* Customer Screens */}
           <Stack.Screen
             name="Auth"
             component={AuthScreen}
@@ -71,6 +93,12 @@ export default function App() {
             name="Main"
             component={TabNavigator} // Tab Navigator as a screen
             options={{ headerShown: false }} // Hide header for Tab Navigator
+          />
+
+          <Stack.Screen
+            name="Home"
+            component={HomeScreen}
+            options={{ headerShown: false }}
           />
           <Stack.Screen
             name="ServiceProviderScreen"
@@ -97,26 +125,40 @@ export default function App() {
             component={CustomerFeedbackScreen}
             options={{ headerShown: false }}
           />
+
+          <Stack.Screen
+            name="Map"
+            component={MapScreen}
+            options={{ headerShown: false }}
+          />
+
+          {/* Service Provider Screens */}
           <Stack.Screen
             name="ServiceProviderAuth"
             component={SPAuthScreen}
             options={{ headerShown: false }}
           />
           <Stack.Screen
-            name="ServiceProviderHome"
-            component={ServiceProviderOrders}
-            options={{ headerShown: false }}
-          />
+          name="ManageOrders"
+          component={ManageOrders}
+          options={{ headerShown: false }}
+        />
           <Stack.Screen
-            name="Map"
-            component={MapScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="Home"
-            component={HomeScreen}
-            options={{ headerShown: false }}
-          />
+          name="ServiceProviderOptions"
+          component={ServiceProviderOptions}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SPAccountDetails"
+          component={SPAccountDetails}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SPServices"
+          component={SPServices}
+          options={{ headShown: false }}
+        />
+
         </Stack.Navigator>
       </NavigationContainer>
     </AddressProvider>

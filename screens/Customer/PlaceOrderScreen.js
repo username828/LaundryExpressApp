@@ -10,12 +10,12 @@ import {
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { doc, setDoc, collection } from "firebase/firestore";
-import { db } from "../firebaseConfig";
+import { db } from "../../firebaseConfig";
 import { useNavigation } from "@react-navigation/core";
 import { Ionicons } from "@expo/vector-icons";
 import { FontAwesome5 } from "@expo/vector-icons";
 import { getAuth } from "firebase/auth";
-import { AddressContext } from "../context/AddressContext";
+import { AddressContext } from "../../context/AddressContext";
 
 import { useContext } from "react";
 

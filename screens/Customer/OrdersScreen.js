@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import Orders from '../components/Orders';
-import { getOrdersByUser} from '../helpers/data';
+import Orders from '../../components/Orders';
+import { getOrdersByUser} from '../../helpers/data';
 import { getAuth } from "firebase/auth";
 
 const auth = getAuth(); // Initialize Firebase Auth
@@ -20,7 +20,7 @@ const OrderScreen = () => {
 
   // Filter orders based on the status and active tab
   const filteredOrders = orders.filter(order => 
-    activeTab === 'current' ? order.status === 'Pending' : order.status === 'Completed'
+    activeTab === 'current' ? order.status === 'Pending' : order.status === 'Delivered'
   );
 
   return (

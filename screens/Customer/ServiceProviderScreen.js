@@ -3,11 +3,12 @@ import {
   View, Text, StyleSheet, Image, FlatList, TouchableOpacity, ActivityIndicator 
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { getDoc, doc } from 'firebase/firestore';
+import { getDoc, doc,query,where,getDocs,collection } from 'firebase/firestore';
 import { MaterialCommunityIcons } from 'react-native-vector-icons';
+import Sentiment from 'sentiment';
+import { db } from '../../firebaseConfig'; // Ensure this points to your Firebase configuration
 
-import { db } from '../firebaseConfig'; // Ensure this points to your Firebase configuration
-
+const sentimentAnalyzer = new Sentiment();
 const ServiceProviderScreen = () => {
   const route = useRoute();
   const { providerId } = route.params; // Get providerId from route params
@@ -15,6 +16,10 @@ const ServiceProviderScreen = () => {
   const [providerDetails, setProviderDetails] = useState(null);
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const [reviews, setReviews] = useState([]);
+  const [filteredReviews, setFilteredReviews] = useState([]);
+  const [selectedFilter, setSelectedFilter] = useState('All');
 
   const navigation = useNavigation();
 
@@ -36,8 +41,49 @@ const ServiceProviderScreen = () => {
       }
     };
 
+    const fetchReviews = async () => {
+      try {
+        const reviewsQuery = query(collection(db, 'ratings'), where('serviceProviderId', '==', providerId));
+        const querySnapshot = await getDocs(reviewsQuery);
+        
+        // Fetch reviews and analyze sentiment
+        const fetchedReviews = querySnapshot.docs.map(doc => {
+          const reviewData = doc.data();
+          const sentimentScore = sentimentAnalyzer.analyze(reviewData.comment).score;
+
+          // Determine sentiment category
+          let sentimentCategory = 'Neutral';
+          if (sentimentScore > 1) {
+            sentimentCategory = 'Positive';
+          } else if (sentimentScore < -1) {
+            sentimentCategory = 'Negative';
+          }
+
+          return { id: doc.id, ...reviewData, sentiment: sentimentCategory };
+        });
+        console.log("Fetched Reviews:", providerDetails); // Log reviews
+
+        setReviews(fetchedReviews);
+        setFilteredReviews(fetchedReviews); // Default: Show all
+      } catch (error) {
+        console.error('Error fetching reviews:', error);
+      }
+    };
+
+
+
     fetchProviderDetails();
+   
+    fetchReviews();
   }, [providerId]);
+  const filterReviews = (category) => {
+    setSelectedFilter(category);
+    if (category === 'All') {
+      setFilteredReviews(reviews);
+    } else {
+      setFilteredReviews(reviews.filter(review => review.sentiment === category));
+    }
+  };
 
   if (loading) {
     return (
@@ -71,7 +117,7 @@ const ServiceProviderScreen = () => {
   return (
     <View style={styles.container}>
       <FlatList
-        data={[{ key: 'providerDetails' }, { key: 'specialOffers' }, { key: 'services' }]}
+        data={[{ key: 'providerDetails' }, { key: 'specialOffers' }, { key: 'services' }, { key: 'reviews' }]}
         renderItem={({ item }) => {
           if (item.key === 'providerDetails') {
             return (
@@ -127,6 +173,40 @@ const ServiceProviderScreen = () => {
             );
           }
 
+          if (item.key === 'reviews') {
+            return (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>💬 Reviews</Text>
+
+                {/* Filter Buttons */}
+                <View style={styles.filterButtonsContainer}>
+                  {['All', 'Positive', 'Neutral', 'Negative'].map(category => (
+                    <TouchableOpacity 
+                      key={category} 
+                      style={[styles.filterButton, selectedFilter === category && styles.filterButtonActive]} 
+                      onPress={() => filterReviews(category)}
+                    >
+                      <Text style={styles.filterButtonText}>{category}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Reviews List */}
+                <FlatList
+                  data={filteredReviews}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => (
+                    <View style={[styles.reviewItem, getReviewStyle(item.sentiment)]}>
+                      <Text style={styles.reviewText}>🗣️ {item.comment}</Text>
+                      <Text style={styles.reviewSentiment}>Sentiment: {item.sentiment}</Text>
+                    </View>
+                  )}
+                  ListEmptyComponent={<Text style={styles.noReviewsText}>No reviews available</Text>}
+                />
+              </View>
+            );
+          }
+
           return null;
         }}
         keyExtractor={(item) => item.key}
@@ -137,6 +217,20 @@ const ServiceProviderScreen = () => {
     </View>
   );
 };
+
+const getReviewStyle = (sentiment) => {
+  switch (sentiment) {
+    case 'Positive':
+      return { backgroundColor: '#C8E6C9' }; // Light Green
+    case 'Neutral':
+      return { backgroundColor: '#FFF9C4' }; // Light Yellow
+    case 'Negative':
+      return { backgroundColor: '#FFCDD2' }; // Light Red
+    default:
+      return { backgroundColor: '#E0E0E0' }; // Default Grey
+  }
+};
+
 
 const styles = StyleSheet.create({
   container: {
@@ -240,6 +334,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  filterButtonsContainer: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 10 },
+  filterButton: { padding: 10, borderRadius: 5, backgroundColor: '#ddd' },
+  filterButtonActive: { backgroundColor: '#4CAF50' },
+  filterButtonText: { fontSize: 16, color: '#333' },
+  reviewItem: { padding: 10, borderRadius: 5, marginVertical: 5 },
+  reviewText: { fontSize: 16 },
+  reviewSentiment: { fontSize: 14, fontWeight: 'bold', marginTop: 5 },
+  noReviewsText: { textAlign: 'center', marginTop: 10, color: '#777' }
 });
 
 export default ServiceProviderScreen;
+
+
+
+

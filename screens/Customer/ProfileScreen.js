@@ -11,7 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/core";
-import { db } from "../firebaseConfig";
+import { db } from "../../firebaseConfig";
 import { useFocusEffect } from "@react-navigation/native";
 
 const ProfileScreen = () => {

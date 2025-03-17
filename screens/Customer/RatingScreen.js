@@ -8,7 +8,7 @@ import {
   Alert,
 } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
-import { db } from "../firebaseConfig";
+import { db } from "../../firebaseConfig";
 import { collection, doc, setDoc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
@@ -22,6 +22,7 @@ const CustomerFeedbackScreen = ({ route }) => {
   const [selectedCategories, setSelectedCategories] = useState([]); // Track selected checkboxes
 
   const { orderId, providerId } = route.params;
+  console.log(providerId)
 
   const handleCategorySelection = (category) => {
     setSelectedCategories((prev) =>

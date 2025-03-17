@@ -14,12 +14,12 @@ import {
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Picker } from "@react-native-picker/picker";
 import { getDocs, collection } from "firebase/firestore";
-import { db } from "../firebaseConfig";
+import { db } from "../../firebaseConfig";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 
-import { AddressContext } from "../context/AddressContext";
+import { AddressContext } from "../../context/AddressContext";
 
 const ServiceProviderCard = ({ provider, isFavourite, onToggleFavorite }) => {
   const navigation = useNavigation();
