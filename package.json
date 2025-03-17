@@ -19,6 +19,8 @@
     "@react-navigation/stack": "^7.1.1",
     "expo": "~52.0.23",
     "expo-constants": "~17.0.8",
+    "expo-image-manipulator": "~13.0.6",
+    "expo-image-picker": "~16.0.6",
     "expo-location": "~18.0.4",
     "expo-notifications": "^0.29.14",
     "expo-router": "^4.0.15",

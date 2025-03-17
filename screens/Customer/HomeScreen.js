@@ -1,8 +1,7 @@
-import React, { useEffect, useState,useContext } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import {
   View,
   Text,
-  SafeAreaView,
   FlatList,
   TouchableOpacity,
   Image,
@@ -10,6 +9,7 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Picker } from "@react-native-picker/picker";
@@ -18,19 +18,42 @@ import { db } from "../../firebaseConfig";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
+import {
+  SafeAreaView,
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 import { AddressContext } from "../../context/AddressContext";
 
 const ServiceProviderCard = ({ provider, isFavourite, onToggleFavorite }) => {
   const navigation = useNavigation();
+
+  console.log("Provider in card:", provider);
+  console.log("Provider ID:", provider.serviceProviderId);
+
   return (
     <TouchableOpacity
       style={styles.card}
-      onPress={() =>
+      onPress={() => {
+        console.log(
+          "Navigating to ServiceProviderScreen with ID:",
+          provider.serviceProviderId
+        );
+
+        if (!provider.serviceProviderId) {
+          console.error(
+            "serviceProviderId is undefined for provider:",
+            provider
+          );
+          Alert.alert("Error", "Cannot view this service provider details.");
+          return;
+        }
+
         navigation.navigate("ServiceProviderScreen", {
           providerId: provider.serviceProviderId,
-        })
-      }
+        });
+      }}
     >
       <Image source={{ uri: provider.image }} style={styles.cardImage} />
       <View style={styles.cardContent}>
@@ -60,19 +83,22 @@ const HomeScreen = () => {
   const [selectedService, setSelectedService] = useState("All");
 
   const [favorites, setFavorites] = useState([]);
-  const {currentAddress, setCurrentAddress} = useContext(AddressContext); // Access global address state//useState("Loading Location...");
+  const { currentAddress, setCurrentAddress } = useContext(AddressContext); // Access global address state//useState("Loading Location...");
 
   const [loading, setLoading] = useState(true);
+  const insets = useSafeAreaInsets();
 
   const navigation = useNavigation();
-
 
   useEffect(() => {
     const fetchServiceProviders = async () => {
       setLoading(true); // Show loading
       try {
         const querySnapshot = await getDocs(collection(db, "serviceProviders"));
-        const providers = querySnapshot.docs.map((doc) => doc.data());
+        const providers = querySnapshot.docs.map((doc) => ({
+          ...doc.data(),
+          serviceProviderId: doc.id, // Add the document ID as serviceProviderId
+        }));
         setServiceProviders(providers);
         setFilteredProviders(providers);
       } catch (error) {
@@ -144,148 +170,152 @@ const HomeScreen = () => {
   useEffect(() => {
     if (route.params?.selectedAddress) {
       setCurrentAddress(route.params.selectedAddress);
-    } else  {
-  
-    const checkLocationEnabled = async () => {
-      let enabled = await Location.hasServicesEnabledAsync();
-      if (!enabled) {
-        alert("Location not Enabled", "Enable Location", [
-          { text: "Cancel", style: "cancel" },
-          { text: "OK" },
-        ]);
-      }
-    };
-
-    const getCurrentLocation = async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") {
-          alert("Permission not Granted", "Allow Location Services", [
+    } else {
+      const checkLocationEnabled = async () => {
+        let enabled = await Location.hasServicesEnabledAsync();
+        if (!enabled) {
+          alert("Location not Enabled", "Enable Location", [
             { text: "Cancel", style: "cancel" },
             { text: "OK" },
           ]);
-          return;
         }
+      };
 
-        const location = await Location.getCurrentPositionAsync();
-        console.log("Location fetched:", location);
+      const getCurrentLocation = async () => {
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== "granted") {
+            alert("Permission not Granted", "Allow Location Services", [
+              { text: "Cancel", style: "cancel" },
+              { text: "OK" },
+            ]);
+            return;
+          }
 
-        if (!location || !location.coords) {
-          throw new Error("Location data is empty");
+          const location = await Location.getCurrentPositionAsync();
+          console.log("Location fetched:", location);
+
+          if (!location || !location.coords) {
+            throw new Error("Location data is empty");
+          }
+
+          const address = await reverseGeocode(
+            location.coords.latitude,
+            location.coords.longitude
+          );
+          console.log("Address:", address);
+          setCurrentAddress(address);
+        } catch (error) {
+          console.error("Location Error:", error);
+          setCurrentAddress("Error fetching location");
+
+          if (
+            error.message.includes("API limit") ||
+            error.code === "E_API_LIMIT"
+          ) {
+            alert("API Limit Reached", "Try again later.");
+          }
         }
+      };
 
-        const address = await reverseGeocode(
-          location.coords.latitude,
-          location.coords.longitude
-        );
-        console.log("Address:", address);
-        setCurrentAddress(address);
-      } catch (error) {
-        console.error("Location Error:", error);
-        setCurrentAddress("Error fetching location");
-
-        if (
-          error.message.includes("API limit") ||
-          error.code === "E_API_LIMIT"
-        ) {
-          alert("API Limit Reached", "Try again later.");
+      const reverseGeocode = async (latitude, longitude) => {
+        try {
+          const result = await Location.reverseGeocodeAsync({
+            latitude,
+            longitude,
+          });
+          if (result.length > 0) {
+            const { city, region, country, name } = result[0];
+            return `${name}, ${city}, ${region}, ${country}`;
+          }
+          return "Address not found";
+        } catch (error) {
+          console.error("Reverse Geocoding Error:", error);
+          return "Error fetching address";
         }
-      }
-    };
+      };
 
-    const reverseGeocode = async (latitude, longitude) => {
-      try {
-        const result = await Location.reverseGeocodeAsync({
-          latitude,
-          longitude,
-        });
-        if (result.length > 0) {
-          const { city, region, country, name } = result[0];
-          return `${name}, ${city}, ${region}, ${country}`;
-        }
-        return "Address not found";
-      } catch (error) {
-        console.error("Reverse Geocoding Error:", error);
-        return "Error fetching address";
-      }
-    };
-
-    checkLocationEnabled();
-    getCurrentLocation();
-  }
+      checkLocationEnabled();
+      getCurrentLocation();
+    }
   }, [route.params?.selectedAddress]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.navigate("Map")}>
-          <MaterialIcons name="location-on" size={24} color="#2D9CDB" />
-        </Pressable>
-        <View>
-          <Text style={styles.addressTitle}>{currentAddress}</Text>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={[styles.header, { marginTop: insets.top > 0 ? 0 : 25 }]}>
+          <Pressable onPress={() => navigation.navigate("Map")}>
+            <MaterialIcons name="location-on" size={24} color="#2D9CDB" />
+          </Pressable>
+          <View>
+            <Text style={styles.addressTitle}>{currentAddress}</Text>
+          </View>
         </View>
-      </View>
 
-      <View style={styles.searchContainer}>
-        <MaterialIcons name="search" size={24} color="gray" />
-        <TextInput
-          placeholder="Search for Laundry Services"
-          style={styles.searchInput}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
-      <View style={styles.filterContainer}>
-        <Picker
-          selectedValue={minRating}
-          onValueChange={(itemValue) => setMinRating(itemValue)}
-          style={styles.picker}
-        >
-          <Picker.Item label="Sort by Rating" value="All" />
-          <Picker.Item label="3+ Stars" value="3" />
-          <Picker.Item label="4+ Stars" value="4" />
-          <Picker.Item label="5 Stars" value="5" />
-        </Picker>
-
-        <Picker
-          selectedValue={selectedService}
-          onValueChange={(itemValue) => setSelectedService(itemValue)}
-          style={styles.picker}
-        >
-          <Picker.Item label="Services" value="All" />
-          <Picker.Item label="Dry Cleaning" value="Dry" />
-          <Picker.Item label="Wash & Fold" value="Washing" />
-          <Picker.Item label="Ironing" value="Ironing" />
-        </Picker>
-      </View>
-
-      {loading ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#4CAF50" />
+        <View style={styles.searchContainer}>
+          <MaterialIcons name="search" size={24} color="gray" />
+          <TextInput
+            placeholder="Search for Laundry Services"
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
         </View>
-      ) : (
-        <FlatList
-          data={filteredProviders}
-          keyExtractor={(item, index) =>
-            item.serviceProviderId || index.toString()
-          }
-          renderItem={({ item }) => (
-            <ServiceProviderCard
-              provider={item}
-              isFavourite={favorites.includes(item.serviceProviderId)}
-              onToggleFavorite={toggleFavorite}
-            />
-          )}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
-      )}
-    </SafeAreaView>
+
+        <View style={styles.filterContainer}>
+          <Picker
+            selectedValue={minRating}
+            onValueChange={(itemValue) => setMinRating(itemValue)}
+            style={styles.picker}
+          >
+            <Picker.Item label="Sort by Rating" value="All" />
+            <Picker.Item label="3+ Stars" value="3" />
+            <Picker.Item label="4+ Stars" value="4" />
+            <Picker.Item label="5 Stars" value="5" />
+          </Picker>
+
+          <Picker
+            selectedValue={selectedService}
+            onValueChange={(itemValue) => setSelectedService(itemValue)}
+            style={styles.picker}
+          >
+            <Picker.Item label="Services" value="All" />
+            <Picker.Item label="Dry Cleaning" value="Dry" />
+            <Picker.Item label="Wash & Fold" value="Washing" />
+            <Picker.Item label="Ironing" value="Ironing" />
+          </Picker>
+        </View>
+
+        {loading ? (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color="#4CAF50" />
+          </View>
+        ) : (
+          <FlatList
+            data={filteredProviders}
+            keyExtractor={(item, index) =>
+              item.serviceProviderId || index.toString()
+            }
+            renderItem={({ item }) => (
+              <ServiceProviderCard
+                provider={item}
+                isFavourite={favorites.includes(item.serviceProviderId)}
+                onToggleFavorite={toggleFavorite}
+              />
+            )}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          />
+        )}
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
+  container: {
+    flex: 1,
+    backgroundColor: "#F9FAFB",
+  },
   loaderContainer: {
     flex: 1,
     justifyContent: "center",
@@ -300,7 +330,6 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: "white",
     elevation: 4,
-    marginTop: 25,
   },
   addressTitle: { fontSize: 10, fontWeight: "600", color: "gray" },
   searchContainer: {
