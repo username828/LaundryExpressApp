@@ -59,20 +59,25 @@ LaundryExpress is a mobile application that connects customers with laundry serv
    ```
 
 ## Project Structure
-LaundryExpressApp/
-├── assets/ # Images, fonts, and other static assets
-├── components/ # Reusable UI components
-├── context/ # React Context for state management
-├── helpers/ # Helper functions and utilities
-├── navigation/ # Navigation configuration
-├── screens/ # Screen components
-│ ├── Auth/ # Authentication screens
-│ ├── Customer/ # Customer-facing screens
-│ └── ServiceProvider/ # Service provider screens
-├── services/ # API and service integrations
-├── App.js # Main application component
-├── firebaseConfig.js # Firebase configuration
-└── package.json # Project dependencies
+<h2>LaundryExpressApp</h2>
+    <ul>
+        <li>📁 <strong>assets/</strong> - Images, fonts, and other static assets</li>
+        <li>📁 <strong>components/</strong> - Reusable UI components</li>
+        <li>📁 <strong>context/</strong> - React Context for state management</li>
+        <li>📁 <strong>helpers/</strong> - Helper functions and utilities</li>
+        <li>📁 <strong>navigation/</strong> - Navigation configuration</li>
+        <li>📁 <strong>screens/</strong> - Screen components
+            <ul>
+                <li>📁 <strong>Auth/</strong> - Authentication screens</li>
+                <li>📁 <strong>Customer/</strong> - Customer-facing screens</li>
+                <li>📁 <strong>ServiceProvider/</strong> - Service provider screens</li>
+            </ul>
+        </li>
+        <li>📁 <strong>services/</strong> - API and service integrations</li>
+        <li>📄 <strong>App.js</strong> - Main application component</li>
+        <li>📄 <strong>firebaseConfig.js</strong> - Firebase configuration</li>
+        <li>📄 <strong>package.json</strong> - Project dependencies</li>
+    </ul>
 
 
 ## Key Screens
@@ -126,14 +131,4 @@ LaundryExpressApp/
 - **Advanced Analytics**: Detailed business insights for service providers
 - **Route Optimization**: Efficient delivery route planning
 
-## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Contact
-
-For any inquiries, please contact [your-email@example.com](mailto:your-email@example.com).
