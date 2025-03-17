@@ -23,6 +23,7 @@
     "expo-router": "^4.0.17",
     "expo-status-bar": "~2.0.0",
     "firebase": "^11.4.0",
+    "lucide-react-native": "^0.482.0",
     "react": "18.3.1",
     "react-native": "0.76.5",
     "react-native-gesture-handler": "~2.20.2",

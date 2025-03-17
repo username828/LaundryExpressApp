@@ -16,6 +16,9 @@ import CustomerFeedbackScreen from "./screens/RatingScreen";
 import LoadingScreen from "./screens/LoadingScreen"; // Import LoadingScreen
 import ServiceProviderOptions from "./screens/ServiceProvider/ServiceProviderOptions"; // Import ServiceProviderOptions
 import { auth, db } from "./firebaseConfig"; // Adjust the path if necessary
+import SPAccountDetails from "./screens/ServiceProvider/SPAccountDetails"; // Import the new screen
+import SPServices from "./screens/ServiceProvider/SPServices";
+import ManageOrders from "./screens/ServiceProvider/ManageOrders";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -58,6 +61,11 @@ export default function App() {
         <Stack.Screen
           name="Loading"
           component={LoadingScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ManageOrders"
+          component={ManageOrders}
           options={{ headerShown: false }}
         />
         <Stack.Screen
@@ -109,6 +117,16 @@ export default function App() {
           name="ServiceProviderOptions"
           component={ServiceProviderOptions}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SPAccountDetails"
+          component={SPAccountDetails}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SPServices"
+          component={SPServices}
+          options={{ headShown: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>

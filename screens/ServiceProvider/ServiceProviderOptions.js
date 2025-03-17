@@ -6,17 +6,14 @@ const ServiceProviderOptions = () => {
   const navigation = useNavigation();
 
   const handleAccountDetails = () => {
-    // Navigate to Account Details screen
-    navigation.navigate("AccountDetails");
+    navigation.navigate("SPAccountDetails");
   };
 
   const handleServices = () => {
-    // Navigate to Services screen
-    navigation.navigate("Services");
+    navigation.navigate("SPServices");
   };
 
   const handleManageOrders = () => {
-    // Navigate to Manage Orders screen
     navigation.navigate("ManageOrders");
   };
 

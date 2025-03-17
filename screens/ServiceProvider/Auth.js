@@ -17,6 +17,7 @@ import { doc, setDoc } from "firebase/firestore";
 import { auth, firestore } from "../../firebaseConfig";
 import { useNavigation } from "@react-navigation/core";
 import ServiceProviderOptions from "./ServiceProviderOptions";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const AuthScreen = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -31,11 +32,11 @@ const AuthScreen = () => {
         email,
         password
       );
-      const user = userCredential.user;
-      console.log("Logged in with:", user.email);
+      console.log("Logged in with:", userCredential.user.email);
 
-      // Debug: Check if navigation is being called
-      console.log("Navigating to ServiceProviderOptions...");
+      // Save user email to AsyncStorage
+      await AsyncStorage.setItem("userEmail", userCredential.user.email);
+
       navigation.navigate("ServiceProviderOptions");
     } catch (error) {
       console.error("Login error:", error);
@@ -43,24 +44,33 @@ const AuthScreen = () => {
     }
   };
 
-  const handleRegister = async ({ name, email, password }) => {
+  const handleRegister = async (name, email, password) => {
     try {
-      const res = await createUserWithEmailAndPassword(auth, email, password);
-      const serviceProviderId = res.user.uid;
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      console.log("Registered successfully:", userCredential.user.email);
 
       // Save service provider details to Firestore
-      await setDoc(doc(firestore, "serviceProviders", serviceProviderId), {
-        name,
-        email,
-        rating: 0,
-        image: "https://example.com/default-image.png",
-      });
+      await setDoc(
+        doc(firestore, "serviceProviders", userCredential.user.uid),
+        {
+          name,
+          email,
+          rating: 0,
+          image: "https://example.com/default-image.png",
+        }
+      );
 
-      console.log("Registered successfully:", name, email);
-      alert("Registration successful!");
+      // Save user email to AsyncStorage
+      await AsyncStorage.setItem("userEmail", email);
+
       navigation.navigate("ServiceProviderOptions");
     } catch (error) {
-      alert(`Sign Up Failed: ${error.message}`);
+      console.error("Registration error:", error);
+      alert(`Registration failed: ${error.message}`);
     }
   };
 
@@ -149,7 +159,7 @@ const RegisterForm = ({ onSubmit }) => {
       alert("Passwords do not match!");
       return;
     }
-    onSubmit({ name, email, password });
+    onSubmit(name, email, password);
   };
 
   return (
