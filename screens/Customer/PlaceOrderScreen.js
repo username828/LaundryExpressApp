@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,36 +7,37 @@ import {
   TouchableOpacity,
   Modal,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
-import { Picker } from "@react-native-picker/picker";
 import { doc, setDoc, collection } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import { useNavigation } from "@react-navigation/core";
-import { Ionicons } from "@expo/vector-icons";
-import { FontAwesome5 } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { getAuth } from "firebase/auth";
 import { AddressContext } from "../../context/AddressContext";
-
-import { useContext } from "react";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 const auth = getAuth(); // Initialize Firebase Auth
 
 const PlaceOrderScreen = ({ route }) => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { providerId, availableServices } = route.params;
-  console.log(providerId, availableServices);
+
   const [serviceType, setServiceType] = useState("");
   const [price, setPrice] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const {currentAddress} = useContext(AddressContext);
+  const { currentAddress } = useContext(AddressContext);
   const [address, setAddress] = useState(currentAddress);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
 
-
-  
   // Sample data for dates and times
   const dates = [
     { id: "1", day: "Tomorrow", date: "Oct 05" },
@@ -62,113 +63,176 @@ const PlaceOrderScreen = ({ route }) => {
       return;
     }
 
+    setIsSubmitting(true);
+
     try {
       const orderRef = doc(collection(db, "orders"));
       const orderId = orderRef.id;
       const orderData = {
         orderId,
-        customerId: auth.currentUser?.uid, 
+        customerId: auth.currentUser?.uid,
         serviceProviderId: providerId,
         serviceType: serviceType,
         price: price,
-        address:address,
-        status: "Pending",
+        address: address,
+        status: "Order Placed",
         orderTime: `${selectedDate} ${selectedTime}`,
         createdAt: new Date().toISOString(),
       };
-      //console.log(orderData)
+
       await setDoc(orderRef, orderData);
-      alert("Order placed successfully!");
-      navigation.navigate('Track', { orderId,providerId });
+      navigation.navigate("Track", { orderId, providerId });
     } catch (error) {
       console.error("Error placing order: ", error);
       alert("Failed to place order. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>🧺 Place Your Order</Text>
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <View style={[styles.header, { marginTop: insets.top > 0 ? 0 : 20 }]}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Place Your Order</Text>
+        <View style={styles.backButton} />
+      </View>
 
-      <Text style={styles.label}>Select Service</Text>
-      <FlatList
-        data={availableServices}
-        keyExtractor={(item, index) => index.toString()}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => (
+      <View style={styles.content}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Select Service</Text>
+          <FlatList
+            data={availableServices}
+            keyExtractor={(item, index) => index.toString()}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.serviceCard,
+                  serviceType === item.name && styles.selectedService,
+                ]}
+                onPress={() => {
+                  setServiceType(item.name);
+                  setPrice(item.price);
+                }}
+              >
+                <FontAwesome5
+                  name="tshirt"
+                  size={24}
+                  color={serviceType === item.name ? "#FFFFFF" : "#007AFF"}
+                  style={styles.serviceIcon}
+                />
+                <Text
+                  style={[
+                    styles.serviceText,
+                    serviceType === item.name && styles.selectedServiceText,
+                  ]}
+                >
+                  {item.name}
+                </Text>
+                <Text
+                  style={[
+                    styles.servicePriceText,
+                    serviceType === item.name && styles.selectedServiceText,
+                  ]}
+                >
+                  ${item.price.toFixed(2)}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Estimated Price</Text>
+          <View style={styles.priceContainer}>
+            <FontAwesome5 name="money-bill-wave" size={20} color="#34C759" />
+            <Text style={styles.price}>${price.toFixed(2)}</Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Pickup Address</Text>
+          <View style={styles.inputContainer}>
+            <Ionicons name="location-outline" size={20} color="#555" />
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your address"
+              value={address}
+              onChangeText={setAddress}
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Order Time</Text>
           <TouchableOpacity
-            style={[
-              styles.serviceCard,
-              serviceType === item ? styles.selectedService : null,
-            ]}
-            onPress={() => {
-              setServiceType(item.name);
-              setPrice(item.price);
-            }}
+            style={styles.selectTimeButton}
+            onPress={() => setModalVisible(true)}
           >
-            <Text
-              style={[
-                styles.serviceText,
-                serviceType === item.name ? styles.selectedServiceText : null,
-              ]}
-            >
-              {item.name}
+            <FontAwesome5 name="calendar-alt" size={18} color="#007AFF" />
+            <Text style={styles.selectTimeText}>
+              {selectedDate && selectedTime
+                ? `${selectedDate}, ${selectedTime}`
+                : "Pick a Date & Time"}
             </Text>
+            <Ionicons name="chevron-forward" size={18} color="#8E8E93" />
           </TouchableOpacity>
-        )}
-      />
+        </View>
 
-      {/* Estimated Price */}
-      <Text style={styles.label}>Estimated Price</Text>
-      <View style={styles.priceContainer}>
-        <FontAwesome5 name="money-bill-wave" size={20} color="#4CAF50" />
-        <Text style={styles.price}>${price}</Text>
+        <TouchableOpacity
+          style={[
+            styles.placeOrderButton,
+            (!serviceType || !address || !selectedDate || !selectedTime) &&
+              styles.disabledButton,
+            isSubmitting && styles.loadingButton,
+          ]}
+          onPress={handlePlaceOrder}
+          disabled={
+            !serviceType ||
+            !address ||
+            !selectedDate ||
+            !selectedTime ||
+            isSubmitting
+          }
+        >
+          {isSubmitting ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <FontAwesome5 name="shopping-cart" size={18} color="#fff" />
+              <Text style={styles.placeOrderText}> Place Order</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </View>
-
-      <Text style={styles.label}>Pickup Address</Text>
-      <View style={styles.inputContainer}>
-        <Ionicons name="location-outline" size={20} color="#555" />
-        <TextInput
-          style={styles.input}
-          placeholder={currentAddress}
-          value={address}
-          onChangeText={setAddress}
-        />
-      </View>
-
-      <Text style={styles.label}>Order Time</Text>
-      <TouchableOpacity
-        style={styles.selectTimeButton}
-        onPress={() => setModalVisible(true)}
-      >
-        <FontAwesome5 name="calendar-alt" size={18} color="#007AFF" />
-        <Text style={styles.selectTimeText}>
-          {selectedDate && selectedTime
-            ? `${selectedDate}, ${selectedTime}`
-            : "Pick a Date & Time"}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.placeOrderButton}
-        onPress={handlePlaceOrder}
-      >
-        <FontAwesome5 name="shopping-cart" size={18} color="#fff" />
-        <Text style={styles.placeOrderText}> Place Order</Text>
-      </TouchableOpacity>
 
       {/* Date & Time Picker Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Choose Date & Time</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Choose Date & Time</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setModalVisible(false)}
+              >
+                <Ionicons name="close" size={24} color="#8E8E93" />
+              </TouchableOpacity>
+            </View>
 
             <Text style={styles.modalSubtitle}>Select a Date</Text>
             <FlatList
               data={dates}
               keyExtractor={(item) => item.id}
               horizontal
+              showsHorizontalScrollIndicator={false}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[
@@ -177,8 +241,22 @@ const PlaceOrderScreen = ({ route }) => {
                   ]}
                   onPress={() => setSelectedDate(item.date)}
                 >
-                  <Text style={styles.dateText}>{item.day}</Text>
-                  <Text style={styles.dateText}>{item.date}</Text>
+                  <Text
+                    style={[
+                      styles.dateDay,
+                      selectedDate === item.date && styles.dateTextSelected,
+                    ]}
+                  >
+                    {item.day}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.dateText,
+                      selectedDate === item.date && styles.dateTextSelected,
+                    ]}
+                  >
+                    {item.date}
+                  </Text>
                 </TouchableOpacity>
               )}
             />
@@ -188,6 +266,7 @@ const PlaceOrderScreen = ({ route }) => {
               data={timeSlots}
               keyExtractor={(item, index) => index.toString()}
               horizontal
+              showsHorizontalScrollIndicator={false}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[
@@ -196,7 +275,20 @@ const PlaceOrderScreen = ({ route }) => {
                   ]}
                   onPress={() => setSelectedTime(item)}
                 >
-                  <Text style={styles.timeText}>{item}</Text>
+                  <Ionicons
+                    name="time-outline"
+                    size={16}
+                    color={selectedTime === item ? "#FFFFFF" : "#007AFF"}
+                    style={styles.timeIcon}
+                  />
+                  <Text
+                    style={[
+                      styles.timeText,
+                      selectedTime === item && styles.timeTextSelected,
+                    ]}
+                  >
+                    {item}
+                  </Text>
                 </TouchableOpacity>
               )}
             />
@@ -210,167 +302,257 @@ const PlaceOrderScreen = ({ route }) => {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
     flex: 1,
-    backgroundColor: "#fff",
-    marginTop: 30,
+    backgroundColor: "#F2F2F7",
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-    textAlign: "center",
-    color: "#333",
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E5EA",
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#000000",
+  },
+  content: {
+    flex: 1,
+    padding: 16,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#3C3C43",
+    marginBottom: 12,
   },
   serviceCard: {
     borderRadius: 12,
-    paddingVertical: 15,
+    paddingVertical: 16,
     paddingHorizontal: 20,
-    marginHorizontal: 8,
-    backgroundColor: "#f8f8f8",
+    marginRight: 12,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
     shadowRadius: 4,
-    elevation: 5,
-    borderWidth: 2,
-    borderColor: "transparent",
+    elevation: 2,
+    minWidth: 120,
   },
   selectedService: {
-
-    backgroundColor: "#007bff",
-    borderColor: "#0056b3",
+    backgroundColor: "#007AFF",
+  },
+  serviceIcon: {
+    marginBottom: 8,
   },
   serviceText: {
     fontSize: 16,
     fontWeight: "600",
     color: "#333",
+    marginBottom: 4,
+  },
+  servicePriceText: {
+    fontSize: 14,
+    color: "#8E8E93",
   },
   selectedServiceText: {
-    color: "black",
-    fontWeight: "bold",
+    color: "#FFFFFF",
   },
-  label: {
-    fontSize: 20,
-    fontWeight: "500",
-    marginBottom: 8,
-    color: "#555",
-    textAlign: "center",
-  },
-  picker: {
-    backgroundColor: "#f9f9f9",
-    borderRadius: 8,
-    marginBottom: 16,
-    paddingHorizontal: 8,
-    height: 50,
-    justifyContent: "center",
+  priceContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   price: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 16,
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#34C759",
+    marginLeft: 12,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   input: {
-    backgroundColor: "#f9f9f9",
-    borderRadius: 8,
-    borderColor: "#ddd",
-    borderWidth: 1,
-    height: 50,
-    paddingHorizontal: 10,
-    marginBottom: 16,
-    color: "#333",
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 16,
+    color: "#3C3C43",
   },
   selectTimeButton: {
-    backgroundColor: "#eef",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   selectTimeText: {
-    color: "#333",
+    flex: 1,
     fontSize: 16,
+    color: "#3C3C43",
+    marginLeft: 12,
   },
   placeOrderButton: {
     backgroundColor: "#007AFF",
-    borderRadius: 8,
-    padding: 16,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 24,
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  disabledButton: {
+    backgroundColor: "#A2A2A2",
+    shadowColor: "#A2A2A2",
+  },
+  loadingButton: {
+    backgroundColor: "#007AFF",
   },
   placeOrderText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "600",
+    marginLeft: 8,
   },
   modalContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
   modalContent: {
-    backgroundColor: "#fff",
-    width: "90%",
-    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: 20,
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 20,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#000000",
+  },
+  closeButton: {
+    padding: 4,
   },
   modalSubtitle: {
     fontSize: 16,
-    fontWeight: "500",
-    marginBottom: 10,
+    fontWeight: "600",
+    color: "#3C3C43",
+    marginBottom: 12,
+    marginTop: 16,
   },
   dateCard: {
-    backgroundColor: "#f9f9f9",
-    padding: 10,
-    margin: 5,
-    borderRadius: 8,
+    borderRadius: 12,
+    padding: 16,
+    marginRight: 12,
+    backgroundColor: "#F2F2F7",
     alignItems: "center",
+    minWidth: 100,
   },
   dateCardSelected: {
     backgroundColor: "#007AFF",
   },
+  dateDay: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#3C3C43",
+    marginBottom: 4,
+  },
   dateText: {
-    color: "#333",
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#3C3C43",
+  },
+  dateTextSelected: {
+    color: "#FFFFFF",
   },
   timeCard: {
-    backgroundColor: "#f9f9f9",
-    padding: 10,
-    margin: 5,
-    borderRadius: 8,
+    flexDirection: "row",
     alignItems: "center",
+    borderRadius: 12,
+    padding: 12,
+    marginRight: 12,
+    backgroundColor: "#F2F2F7",
+    minWidth: 160,
   },
   timeCardSelected: {
     backgroundColor: "#007AFF",
   },
+  timeIcon: {
+    marginRight: 8,
+  },
   timeText: {
-    color: "#333",
+    fontSize: 14,
+    color: "#3C3C43",
+  },
+  timeTextSelected: {
+    color: "#FFFFFF",
   },
   doneButton: {
     backgroundColor: "#007AFF",
-    padding: 10,
-    marginTop: 20,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 12,
     alignItems: "center",
-    width: "100%",
+    marginTop: 24,
   },
   doneButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
 

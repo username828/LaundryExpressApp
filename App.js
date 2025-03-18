@@ -9,12 +9,16 @@ import HomeScreen from "./screens/Customer/HomeScreen";
 import AuthScreen from "./screens/Customer/AuthScreen";
 import ServiceProviderScreen from "./screens/Customer/ServiceProviderScreen";
 import ProfileScreen from "./screens/Customer/ProfileScreen";
+import EditProfileScreen from "./screens/Customer/EditProfile";
+
 
 import PlaceOrderScreen from "./screens/Customer/PlaceOrderScreen";
 import OrderScreen from "./screens/Customer/OrdersScreen";
 import TrackOrderScreen from "./screens/Customer/TrackOrderScreen";
 import CustomerFeedbackScreen from "./screens/Customer/RatingScreen";
 import MapScreen from "./screens/Customer/MapScreen";
+import FileComplaintScreen from "./screens/Customer/FileComplaint";
+
 
 
 //Other Screens
@@ -28,6 +32,7 @@ import SPAccountDetails from "./screens/ServiceProvider/SPAccountDetails";
 import SPServices from "./screens/ServiceProvider/SPServices";
 import ServiceProviderOptions from "./screens/ServiceProvider/ServiceProviderOptions";
 import ManageOrders from "./screens/ServiceProvider/ManageOrders";
+import OrderDetailsScreen from "./screens/ServiceProvider/OrderDetailsScreen";
 
 import { AddressProvider } from "./context/AddressContext"; // Import the Provider
 
@@ -132,6 +137,12 @@ export default function App() {
             options={{ headerShown: false }}
           />
 
+          <Stack.Screen
+            name="EditProfile"
+            component={EditProfileScreen}
+            options={{ headerShown: false }}
+          />
+
           {/* Service Provider Screens */}
           <Stack.Screen
             name="ServiceProviderAuth"
@@ -159,6 +170,18 @@ export default function App() {
           options={{ headShown: false }}
         />
 
+        <Stack.Screen
+          name="OrderDetails"
+          component={OrderDetailsScreen}
+          options={{ headShown: false }}
+        />
+
+
+        <Stack.Screen
+          name="FileComplaint"
+          component={FileComplaintScreen}
+          options={{ headShown: false }}
+        />
         </Stack.Navigator>
       </NavigationContainer>
     </AddressProvider>

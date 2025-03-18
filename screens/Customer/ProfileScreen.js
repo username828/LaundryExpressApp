@@ -5,6 +5,7 @@ import {
   FlatList,
   Image,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -13,10 +14,16 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/core";
 import { db } from "../../firebaseConfig";
 import { useFocusEffect } from "@react-navigation/native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 
 const ProfileScreen = () => {
   const auth = getAuth();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
 
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -57,49 +64,41 @@ const ProfileScreen = () => {
     fetchProfileData();
   }, [user]);
 
+
+
   useFocusEffect(
     React.useCallback(() => {
-      let isActive = true;
-
-      const loadFavorites = async () => {
+      const fetchFavoriteProviders = async () => {
         try {
           const storedFavorites = await AsyncStorage.getItem("favorites");
-          if (storedFavorites && isActive) {
-            setFavorites(JSON.parse(storedFavorites));
+  
+          const favoriteIds = storedFavorites ? JSON.parse(storedFavorites) : [];
+  
+          if (favoriteIds.length === 0) {
+            setFavoriteProviders([]); // No favorites exist
+            return;
           }
+  
+          // Retrieve stored service providers
+          const storedProviders = await AsyncStorage.getItem("serviceProviders");
+
+          const allProviders = storedProviders ? JSON.parse(storedProviders) : [];
+  
+          const favoriteProviders = allProviders.filter((provider) =>
+            favoriteIds.includes(provider.serviceProviderId)
+          );
+  
+          setFavoriteProviders(favoriteProviders);
         } catch (error) {
-          console.error("Error loading favorites:", error);
+          console.error("Error fetching favorite providers:", error);
         }
       };
-
-      loadFavorites();
-
-      return () => {
-        isActive = false;
-      };
-    }, [])
+  
+      fetchFavoriteProviders();
+    }, []) // Empty dependency array ensures it runs every time screen is focused
   );
-
-  useEffect(() => {
-    const fetchFavoriteProviders = async () => {
-      if (favorites.length === 0) return;
-
-      try {
-        const providersQuery = query(
-          collection(db, "serviceProviders"),
-          where("serviceProviderId", "in", favorites)
-        );
-
-        const querySnapshot = await getDocs(providersQuery);
-        const providers = querySnapshot.docs.map((doc) => doc.data());
-        setFavoriteProviders(providers);
-      } catch (error) {
-        console.error("Error fetching favorite providers:", error);
-      }
-    };
-
-    fetchFavoriteProviders();
-  }, [favorites]);
+  
+  
 
   const handleLogout = async () => {
     try {
@@ -112,210 +111,323 @@ const ProfileScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text>Loading...</Text>
-      </View>
+      <SafeAreaView style={styles.loadingContainer} edges={["top"]}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Loading profile...</Text>
+      </SafeAreaView>
     );
   }
 
   if (!profile) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text>No profile found.</Text>
-      </View>
+      <SafeAreaView style={styles.loadingContainer} edges={["top"]}>
+        <MaterialIcons name="error-outline" size={48} color="#FF3B30" />
+        <Text style={styles.errorText}>No profile found.</Text>
+      </SafeAreaView>
     );
   }
 
   return (
-    <FlatList
-      ListHeaderComponent={
-        <>
-          <View style={styles.profileContainer}>
-            <Image
-              source={{
-                uri: profile.avatar || "https://via.placeholder.com/100",
-              }}
-              style={styles.profileImage}
-            />
-            <Text style={styles.name}>{profile.name}</Text>
-            <Text style={styles.email}>{profile.email}</Text>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={() => navigation.navigate("EditProfile")}
-            >
-              <Text style={styles.editButtonText}>Edit Profile</Text>
-            </TouchableOpacity>
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <View style={[styles.header, { marginTop: insets.top > 0 ? 0 : 20 }]}>
+        <Text style={styles.headerTitle}>My Profile</Text>
+      </View>
 
-            {/* Orders Button */}
-            <TouchableOpacity
-              style={styles.ordersButton}
-              onPress={() => navigation.navigate("Orders")}
-            >
-              <Text style={styles.ordersButtonText}>View Orders</Text>
-            </TouchableOpacity>
-          </View>
+      <FlatList
+        ListHeaderComponent={
+          <>
+            <View style={styles.profileContainer}>
+              <View style={styles.avatarContainer}>
+                <Image
+                  source={{
+                    uri: profile.avatar || "https://static.vecteezy.com/system/resources/thumbnails/020/765/399/small_2x/default-profile-account-unknown-icon-black-silhouette-free-vector.jpg",
+                  }}
+                  style={styles.profileImage}
+                />
+              </View>
+              <Text style={styles.name}>{profile.name}</Text>
+              <Text style={styles.email}>{profile.email}</Text>
 
-          <Text style={styles.sectionTitle}>My Favourites</Text>
-          {favoriteProviders.length === 0 && (
-            <Text style={styles.noFavoritesText}>No favorites added yet.</Text>
-          )}
-        </>
-      }
-      data={favoriteProviders}
-      keyExtractor={(item) => item.serviceProviderId}
-      renderItem={({ item }) => (
-        <TouchableOpacity
-          style={styles.card}
-          onPress={() =>
-            navigation.navigate("ServiceProviderScreen", {
-              providerId: item.serviceProviderId,
-            })
-          }
-        >
-          <Image source={{ uri: item.image }} style={styles.cardImage} />
-          <View style={styles.cardContent}>
-            <Text style={styles.providerName}>{item.name}</Text>
-            <Text style={styles.rating}>⭐ {item.rating}</Text>
-          </View>
-        </TouchableOpacity>
-      )}
-      ListFooterComponent={
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Logout</Text>
-        </TouchableOpacity>
-      }
-      contentContainerStyle={{ paddingBottom: 20 }}
-    />
+              <View style={styles.actionsContainer}>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => navigation.navigate("EditProfile")}
+                >
+                  <MaterialIcons name="edit" size={20} color="#FFFFFF" />
+                  <Text style={styles.actionButtonText}>Edit Profile</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.ordersButton]}
+                  onPress={() => navigation.navigate("Orders")}
+                >
+                  <MaterialIcons name="receipt" size={20} color="#FFFFFF" />
+                  <Text style={styles.actionButtonText}>View Orders</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.sectionHeader}>
+              <MaterialIcons name="favorite" size={20} color="#FF3B30" />
+              <Text style={styles.sectionTitle}>My Favorites</Text>
+            </View>
+
+            {favoriteProviders.length === 0 && (
+              <View style={styles.emptyStateContainer}>
+                <MaterialIcons
+                  name="favorite-border"
+                  size={48}
+                  color="#CCCCCC"
+                />
+                <Text style={styles.noFavoritesText}>
+                  No favorites added yet.
+                </Text>
+                <Text style={styles.emptyStateSubtext}>
+                  Your favorite laundry services will appear here
+                </Text>
+              </View>
+            )}
+          </>
+        }
+        data={favoriteProviders}
+        keyExtractor={(item) => item.serviceProviderId}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() =>
+              navigation.navigate("ServiceProviderScreen", {
+                providerId: item.serviceProviderId,
+              })
+            }
+          >
+            <Image source={{ uri: item.image }} style={styles.cardImage} />
+            <View style={styles.cardContent}>
+              <Text style={styles.providerName}>{item.name}</Text>
+              <View style={styles.ratingContainer}>
+                <MaterialIcons name="star" size={16} color="#FFC107" />
+                <Text style={styles.rating}>{item.rating}</Text>
+              </View>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color="#CCCCCC" />
+          </TouchableOpacity>
+        )}
+        ListFooterComponent={
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <MaterialIcons name="logout" size={20} color="#FFFFFF" />
+            <Text style={styles.logoutButtonText}>Logout</Text>
+          </TouchableOpacity>
+        }
+        contentContainerStyle={{ paddingBottom: 30 }}
+      />
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F8F9FA",
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEEEEE",
+    backgroundColor: "#FFFFFF",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#333333",
+    textAlign: "center",
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8F8F8",
+    backgroundColor: "#F8F9FA",
+    padding: 20,
   },
-
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#666666",
+  },
+  errorText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#666666",
+    textAlign: "center",
+  },
   profileContainer: {
     alignItems: "center",
-    marginTop: 40,
+    paddingVertical: 30,
     paddingHorizontal: 20,
+    backgroundColor: "#FFFFFF",
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  avatarContainer: {
+    padding: 3,
+    borderRadius: 60,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginBottom: 16,
   },
   profileImage: {
     width: 110,
     height: 110,
     borderRadius: 55,
-    marginBottom: 12,
     borderWidth: 3,
     borderColor: "#007AFF",
   },
   name: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#222",
+    color: "#333333",
     marginBottom: 4,
   },
   email: {
     fontSize: 16,
-    color: "#555",
+    color: "#666666",
+    marginBottom: 20,
   },
-
-  editButton: {
+  actionsContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    width: "100%",
+    marginTop: 10,
+  },
+  actionButton: {
     backgroundColor: "#007AFF",
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 10,
-    marginTop: 12,
+    borderRadius: 12,
+    marginHorizontal: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  editButtonText: {
-    color: "#fff",
+  ordersButton: {
+    backgroundColor: "#34C759",
+  },
+  actionButtonText: {
+    color: "#FFFFFF",
     fontWeight: "600",
-    fontSize: 16,
+    fontSize: 15,
+    marginLeft: 6,
   },
-
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    marginTop: 20,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    marginVertical: 12,
-    paddingHorizontal: 20,
-    textAlign: "center",
-    color: "#333",
+    marginLeft: 8,
+    color: "#333333",
+  },
+  emptyStateContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 30,
+    backgroundColor: "#FFFFFF",
+    margin: 20,
+    borderRadius: 12,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 1,
   },
   noFavoritesText: {
-    textAlign: "center",
-    color: "#777",
+    marginTop: 12,
     fontSize: 16,
-    paddingHorizontal: 20,
-    marginBottom: 12,
+    fontWeight: "600",
+    color: "#666666",
   },
-
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: "#999999",
+    textAlign: "center",
+    marginTop: 8,
+  },
   card: {
     flexDirection: "row",
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 14,
     marginVertical: 8,
     marginHorizontal: 16,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
+    alignItems: "center",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 1,
   },
   cardImage: {
-    width: 85,
-    height: 85,
+    width: 70,
+    height: 70,
     borderRadius: 10,
     marginRight: 14,
   },
   cardContent: {
-    justifyContent: "center",
     flex: 1,
+    justifyContent: "center",
   },
   providerName: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "bold",
-    color: "#333",
-    marginBottom: 2,
+    color: "#333333",
+    marginBottom: 4,
+  },
+  ratingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   rating: {
-    fontSize: 15,
-    color: "#777",
+    fontSize: 14,
+    color: "#666666",
+    marginLeft: 4,
   },
-
   logoutButton: {
     backgroundColor: "#FF3B30",
-    paddingVertical: 12,
+    paddingVertical: 14,
     marginHorizontal: 40,
     borderRadius: 12,
     alignItems: "center",
-    marginTop: 25,
-    elevation: 4,
+    marginTop: 30,
+    flexDirection: "row",
+    justifyContent: "center",
     shadowColor: "#FF3B30",
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   logoutButtonText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontWeight: "bold",
     fontSize: 16,
+    marginLeft: 8,
   },
-  ordersButton: { 
-    backgroundColor: '#34C759', 
-    paddingVertical: 12, 
-    paddingHorizontal: 20, 
-    borderRadius: 10, 
-    marginTop: 12, 
-    alignItems: 'center' 
-  },
-  ordersButtonText: { 
-    color: '#fff', 
-    fontWeight: '600', 
-    fontSize: 16 
-  },
-  
 });
 
 export default ProfileScreen;

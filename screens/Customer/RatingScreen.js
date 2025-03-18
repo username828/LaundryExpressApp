@@ -11,6 +11,7 @@ import { FontAwesome } from "@expo/vector-icons";
 import { db } from "../../firebaseConfig";
 import { collection, doc, setDoc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { useNavigation } from "@react-navigation/native";
 
 const auth = getAuth();
 
@@ -22,8 +23,8 @@ const CustomerFeedbackScreen = ({ route }) => {
   const [selectedCategories, setSelectedCategories] = useState([]); // Track selected checkboxes
 
   const { orderId, providerId } = route.params;
-  console.log(providerId)
 
+  const navigation = useNavigation();
   const handleCategorySelection = (category) => {
     setSelectedCategories((prev) =>
       prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
@@ -64,6 +65,8 @@ const CustomerFeedbackScreen = ({ route }) => {
       setRating(0);
       setReview("");
       setSelectedCategories([]);
+
+      navigation.navigate("Home");
     } catch (error) {
       console.error("Error submitting review: ", error);
       Alert.alert("Error", "Failed to submit feedback.");

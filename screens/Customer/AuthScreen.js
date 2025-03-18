@@ -39,11 +39,12 @@ const AuthScreen = () => {
       const userId = res.user.uid;
 
       // Save user details to Firestore
-      await setDoc(doc(firestore, "users", userId), {
+      await setDoc(doc(firestore, "customers", userId), {
         name,
         email,
         rating: 0,
-        image: "https://example.com/default-image.png", // Placeholder image
+        createdAt: new Date(),
+      
       });
 
       console.log("Registered successfully:", name, email);

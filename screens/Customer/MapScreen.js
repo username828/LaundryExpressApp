@@ -46,7 +46,7 @@ const MapScreen = () => {
   const handleSelectLocation = async (event) => {
     const { latitude, longitude } = event.nativeEvent.coordinate;
     setSelectedLocation({ latitude, longitude });
-
+    console.log("Selected location:", latitude, longitude); // Debug log
     setLoadingAddress(true);
     try {
       const addressData = await Location.reverseGeocodeAsync({
