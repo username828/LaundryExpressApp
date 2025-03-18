@@ -1,10 +1,57 @@
-import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
-import React from "react";
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
+import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
-import Icon from "react-native-vector-icons/MaterialCommunityIcons"; // Import icons
+import Icon from "react-native-vector-icons/MaterialCommunityIcons"; 
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "../firebaseConfig"; // Import Firestore instance
 
 const Orders = ({ order }) => {
   const navigation = useNavigation();
+  const [complaintStatus, setComplaintStatus] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchComplaintStatus = async () => {
+      try {
+        const q = query(collection(db, "complaints"), where("orderId", "==", order.orderId));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+          const complaint = querySnapshot.docs[0].data(); // Get the first matched complaint
+          setComplaintStatus(complaint.status); // Store complaint status (Pending/Resolved)
+        } else {
+          setComplaintStatus(null); // No complaint found
+        }
+      } catch (error) {
+        console.error("Error fetching complaint:", error);
+      } finally {
+        setLoading(false); // Stop loading
+      }
+    };
+
+    fetchComplaintStatus();
+  }, [order.orderId]);
+
+  // Determine button text & style based on complaintStatus
+  let complaintButtonText = "Raise Complaint";
+  let complaintButtonStyle = styles.complaintButton;
+  let complaintIcon = "alert-circle-outline";
+  let buttonDisabled = false;
+
+  if (loading) {
+    complaintButtonText = "Loading...";
+    buttonDisabled = true;
+  } else if (complaintStatus === "Pending") {
+    complaintButtonText = "Complaint Pending";
+    complaintButtonStyle = styles.pendingButton;
+    complaintIcon = "clock-outline";
+    buttonDisabled = true;
+  } else if (complaintStatus === "Resolved") {
+    complaintButtonText = "Complaint Resolved";
+    complaintButtonStyle = styles.resolvedButton;
+    complaintIcon = "check-circle-outline";
+    buttonDisabled = true;
+  }
 
   return (
     <TouchableOpacity
@@ -63,21 +110,26 @@ const Orders = ({ order }) => {
         <Text style={styles.createdAt}> {order.orderTime}</Text>
       </View>
 
-      {/* Raise Complaint Button */}
+      {/* Complaint Button */}
       <TouchableOpacity
-        style={styles.complaintButton}
+        style={complaintButtonStyle}
         onPress={() =>
           navigation.navigate("FileComplaint", {
             orderId: order.orderId,
             providerId: order.serviceProviderId,
           })
         }
+        disabled={buttonDisabled}
       >
-        <Icon name="alert-circle-outline" size={20} color="#fff" style={styles.buttonIcon} />
-        <Text style={styles.buttonText}>Raise Complaint</Text>
+        {loading ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <>
+            <Icon name={complaintIcon} size={20} color="#fff" style={styles.buttonIcon} />
+            <Text style={styles.buttonText}>{complaintButtonText}</Text>
+          </>
+        )}
       </TouchableOpacity>
-
-
     </TouchableOpacity>
   );
 };
@@ -139,7 +191,25 @@ const styles = StyleSheet.create({
     marginTop: 10,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#dc3545", // Red color for attention
+    backgroundColor: "#dc3545", // Red for Raise Complaint
+    paddingVertical: 10,
+    borderRadius: 5,
+    justifyContent: "center",
+  },
+  pendingButton: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f39c12", // Orange for Pending
+    paddingVertical: 10,
+    borderRadius: 5,
+    justifyContent: "center",
+  },
+  resolvedButton: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#28a745", // Green for Resolved
     paddingVertical: 10,
     borderRadius: 5,
     justifyContent: "center",
