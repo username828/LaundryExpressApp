@@ -17,6 +17,10 @@ const ServiceProviderOptions = () => {
     navigation.navigate("ManageOrders");
   };
 
+  const handleManageComplaints=()=>{
+    navigation.navigate("ManageComplaints");
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Service Provider Options</Text>
@@ -28,6 +32,9 @@ const ServiceProviderOptions = () => {
       </TouchableOpacity>
       <TouchableOpacity style={styles.button} onPress={handleManageOrders}>
         <Text style={styles.buttonText}>Manage Orders</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={handleManageComplaints}>
+        <Text style={styles.buttonText}>Manage Complaints</Text>
       </TouchableOpacity>
     </View>
   );

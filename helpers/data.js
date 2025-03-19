@@ -81,12 +81,3 @@ export const getOrdersByUser = async (userId) => {
 
 
 
-// console.log(serviceProviders[2].name);
-// const splat=serviceProviders[2].location.coordinates.latitude;
-// const splong=serviceProviders[2].location.coordinates.longitude;
-
-// console.log(splat,splong)
-// const clat=location.coords.latitude;
-// const clong=location.coords.longitude;
-
-// console.log("Distance:", getDistance(splat,splong,clat,clong));

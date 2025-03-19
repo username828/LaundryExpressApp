@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { uploadImageToCloudinary } from "../../imageService";
 import {
   View,
   Text,
@@ -82,16 +83,37 @@ const EditProfileScreen = ({ navigation }) => {
     });
 
     if (!result.canceled) {
-      setProfile({ ...profile, avatar: result.assets[0].uri });
+      setUpdating(true); // Show loader while uploading
+  
+      try {
+        // Upload to Cloudinary
+        const uploadedUrl = await uploadImageToCloudinary(result.assets[0].uri);
+        
+        // Update state with Cloudinary URL
+        setProfile({ ...profile, avatar: uploadedUrl });
+  
+        Alert.alert("Success", "Image uploaded successfully!");
+      } catch (error) {
+        console.error("Image upload error:", error);
+        Alert.alert("Error", "Failed to upload image.");
+      } finally {
+        setUpdating(false);
+      }
     }
   };
 
+
   const handleUpdateProfile = async () => {
     if (!documentId) return;
-
+  
     setUpdating(true);
     try {
-      await updateDoc(doc(db, "customers", documentId), profile);
+      await updateDoc(doc(db, "customers", documentId), {
+        name: profile.name,
+        phone: profile.phone,
+        avatar: profile.avatar, // Ensure Cloudinary URL is stored
+      });
+  
       Alert.alert("Success", "Profile updated successfully!");
       navigation.goBack();
     } catch (error) {

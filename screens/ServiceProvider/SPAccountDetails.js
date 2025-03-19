@@ -21,6 +21,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import * as ImageManipulator from "expo-image-manipulator";
+import { uploadImageToCloudinary } from "../../imageService";
 
 const SPAccountDetails = () => {
   const [loading, setLoading] = useState(true);
@@ -97,76 +98,23 @@ const SPAccountDetails = () => {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        await uploadImage(result.assets[0].uri);
+        const data=await uploadImageToCloudinary(result.assets[0].uri);
+        setProfilePicture(data);
+        Alert.alert("Success", "Image uploaded successfully");
+      
+      }
+      else{
+        Alert.alert("Error", "Failed to upload image");
       }
     } catch (error) {
       console.error("Error picking image:", error);
       Alert.alert("Error", "Failed to pick image");
-    }
-  };
-
-  const uploadImage = async (uri) => {
-    try {
-      setImageUploading(true);
-      const currentUser = auth.currentUser;
-
-      if (!currentUser) {
-        Alert.alert("Error", "You must be logged in to upload images");
-        return;
-      }
-
-      // Log the URI for debugging
-      console.log("Image URI:", uri);
-
-      // Convert image to base64 instead of blob
-      const response = await fetch(uri);
-      const blob = await response.blob();
-
-      // Initialize storage with the app instance explicitly
-      const storage = getStorage(app);
-
-      // Use a simpler path
-      const imagePath = `images/${currentUser.uid}_${Date.now()}.jpg`;
-      console.log("Uploading to path:", imagePath);
-
-      const storageRef = ref(storage, imagePath);
-
-      // Add explicit content type
-      const metadata = {
-        contentType: "image/jpeg",
-      };
-
-      // Upload and log any errors in detail
-      try {
-        const snapshot = await uploadBytes(storageRef, blob, metadata);
-        console.log("Upload successful:", snapshot);
-
-        const downloadURL = await getDownloadURL(snapshot.ref);
-        console.log("Download URL:", downloadURL);
-
-        setProfilePicture(downloadURL);
-        Alert.alert("Success", "Profile picture uploaded successfully");
-      } catch (uploadError) {
-        console.error("Upload error details:", JSON.stringify(uploadError));
-        throw uploadError;
-      }
-    } catch (error) {
-      console.error("Error uploading image:", error);
-
-      // Provide more detailed error information
-      let errorMessage = "Failed to upload image.";
-      if (error.code) {
-        errorMessage += ` Error code: ${error.code}`;
-      }
-      if (error.message) {
-        errorMessage += ` Message: ${error.message}`;
-      }
-
-      Alert.alert("Error", errorMessage);
-    } finally {
+    } finally{
       setImageUploading(false);
     }
   };
+
+
 
   const saveChanges = async () => {
     try {

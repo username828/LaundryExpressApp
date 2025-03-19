@@ -80,6 +80,7 @@ const PlaceOrderScreen = ({ route }) => {
         createdAt: new Date().toISOString(),
       };
 
+      console.log("Order placed: ", orderData);
       await setDoc(orderRef, orderData);
       navigation.navigate("Track", { orderId, providerId });
     } catch (error) {

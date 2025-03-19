@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import Toast from "react-native-toast-message";
+
 import {
   StyleSheet,
   Text,
@@ -83,10 +85,6 @@ const TrackOrderScreen = ({ route }) => {
           completed: index <= activeStepIndex,
         }));
 
-        if (orderData.status !== currentStep) {
-          sendPushNotification(orderData.status);
-        }
-
         setOrderSteps(steps);
         setCurrentStep(orderData.status);
       } else {
@@ -96,7 +94,7 @@ const TrackOrderScreen = ({ route }) => {
     });
 
     return () => unsubscribe();
-  }, [orderId]);
+  }, [orderId,currentStep]);
 
   const sendPushNotification = async (status) => {
     const { status: existingStatus } =

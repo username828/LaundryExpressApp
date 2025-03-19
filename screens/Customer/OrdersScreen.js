@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
 } from "react-native";
 import Orders from "../../components/Orders";
-import { getOrdersByUser } from "../../helpers/data";
 import { getAuth } from "firebase/auth";
 import {
   SafeAreaView,
@@ -16,6 +15,8 @@ import {
 } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { db } from "../../firebaseConfig";
 const auth = getAuth(); // Initialize Firebase Auth
 
 const OrderScreen = () => {
@@ -25,26 +26,35 @@ const OrderScreen = () => {
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      setLoading(true);
-      try {
-        const ordersData = await getOrdersByUser(auth.currentUser?.uid); // Fetch orders from Firebase or service
-        setOrders(ordersData);
-      } catch (error) {
-        console.error("Error fetching orders:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!auth.currentUser) return;
+  
+    const q = query(
+      collection(db, "orders"),
+      where("customerId", "==", auth.currentUser.uid)
+    );
 
-    fetchOrders(); // Fetch orders when the component mounts
+   
+  
+    // Set up real-time listener
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const ordersData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      console.log(ordersData)
+      setOrders(ordersData);
+      setLoading(false)
+    });
+  
+    return () => unsubscribe(); // Cleanup listener when component unmounts
   }, []);
 
   // Filter orders based on the status and active tab
   const filteredOrders = orders.filter((order) =>
     activeTab === "current"
       ? [
-          "Pending",
+          "Order Placed",
           "Picked Up",
           "Washing",
           "Ironing",
@@ -118,6 +128,7 @@ const OrderScreen = () => {
           style={styles.ordersContainer}
           contentContainerStyle={styles.ordersContent}
         >
+          {console.log("Filtered: ",filteredOrders)}
           {filteredOrders.length > 0 ? (
             filteredOrders.map((order) => (
               <Orders key={order.orderId} order={order} />

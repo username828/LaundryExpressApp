@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, Button, Image, TouchableOpacity, StyleSheet } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { uploadImageToFirebase, submitComplaint } from "../../complaintService";
+import { submitComplaint } from "../../complaintService";
+import { uploadImageToCloudinary } from "../../imageService";
 
 const FileComplaintScreen = ({ route, navigation }) => {
   const { orderId, providerId } = route.params;
@@ -22,7 +23,7 @@ const FileComplaintScreen = ({ route, navigation }) => {
   };
 
   const handleSubmit = async () => {
-    const imageUrl = image ? await uploadImageToFirebase(image) : null;
+    const imageUrl = image ? await uploadImageToCloudinary(image) : null;
     await submitComplaint(orderId, providerId, description, imageUrl);
     alert("Complaint submitted!");
     navigation.goBack();

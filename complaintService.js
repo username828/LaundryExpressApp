@@ -3,20 +3,7 @@ import { getFirestore, collection, addDoc, Timestamp } from "firebase/firestore"
 import { auth } from "./firebaseConfig"; // Ensure Firebase is initialized
 
 const db = getFirestore();
-const storage = getStorage();
 
-export const uploadImageToFirebase = async (imageUri) => {
-  try {
-    const response = await fetch(imageUri);
-    const blob = await response.blob();
-    const imageRef = ref(storage, `complaints/${Date.now()}.jpg`);
-    await uploadBytes(imageRef, blob);
-    return await getDownloadURL(imageRef);
-  } catch (error) {
-    console.error("Image upload failed:", error);
-    return null;
-  }
-};
 
 export const submitComplaint = async (orderId, providerId,description, imageUrl) => {
   try {

@@ -9,11 +9,43 @@ import {
 } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { db } from "../../firebaseConfig";
-import { collection, doc, setDoc } from "firebase/firestore";
+import { collection, doc, setDoc,query,where,getDocs,updateDoc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { useNavigation } from "@react-navigation/native";
 
 const auth = getAuth();
+
+
+const updateServiceProviderRating = async (serviceProviderId) => {
+  try {
+    // Step 1: Fetch all ratings for the given service provider
+    const ratingsQuery = query(
+      collection(db, "ratings"), 
+      where("serviceProviderId", "==", serviceProviderId)
+    );
+
+    const ratingsSnapshot = await getDocs(ratingsQuery);
+    const ratingsList = ratingsSnapshot.docs.map(doc => doc.data().rating);
+
+    if (ratingsList.length === 0) return; // No ratings, do nothing
+
+    // Step 2: Calculate the new average rating
+    const totalRatings = ratingsList.length;
+    const sumRatings = ratingsList.reduce((sum, rating) => sum + rating, 0);
+    const newAverageRating = sumRatings / totalRatings;
+
+    // Step 3: Update the service provider's rating
+    const serviceProviderRef = doc(db, "serviceProviders", serviceProviderId);
+    await updateDoc(serviceProviderRef, {
+      rating: parseFloat(newAverageRating.toFixed(1)), // Store as one decimal place
+    });
+
+    console.log(`Updated rating for provider ${serviceProviderId}: ${newAverageRating}`);
+  } catch (error) {
+    console.error("Error updating service provider rating:", error);
+  }
+};
+
 
 const feedbackCategories = ["Punctuality", "Clean Clothes", "Good Pricing", "Customer Service"];
 
@@ -62,6 +94,8 @@ const CustomerFeedbackScreen = ({ route }) => {
       await setDoc(ratingRef, ratingData);
 
       Alert.alert("Thank You!", "Your feedback has been submitted.");
+      //update rating in service provider function
+      await updateServiceProviderRating(providerId);
       setRating(0);
       setReview("");
       setSelectedCategories([]);

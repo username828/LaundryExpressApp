@@ -25,7 +25,8 @@ import {
 } from "react-native-safe-area-context";
 
 import { AddressContext } from "../../context/AddressContext";
-import { connectStorageEmulator } from "firebase/storage";
+import { useOrderStatus } from "../../context/OrderStatusContext";
+
 
 const ServiceProviderCard = ({ provider, isFavourite, onToggleFavorite,distance }) => {
   const navigation = useNavigation();
@@ -94,6 +95,7 @@ const HomeScreen = () => {
   const insets = useSafeAreaInsets();
 
   const navigation = useNavigation();
+
 
   useEffect(() => {
     const fetchServiceProviders = async () => {

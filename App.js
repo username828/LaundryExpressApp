@@ -3,6 +3,8 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
+import Toast from "react-native-toast-message";
+
 
 //Customer Screens
 import HomeScreen from "./screens/Customer/HomeScreen";
@@ -11,7 +13,6 @@ import ServiceProviderScreen from "./screens/Customer/ServiceProviderScreen";
 import ProfileScreen from "./screens/Customer/ProfileScreen";
 import EditProfileScreen from "./screens/Customer/EditProfile";
 
-
 import PlaceOrderScreen from "./screens/Customer/PlaceOrderScreen";
 import OrderScreen from "./screens/Customer/OrdersScreen";
 import TrackOrderScreen from "./screens/Customer/TrackOrderScreen";
@@ -19,12 +20,9 @@ import CustomerFeedbackScreen from "./screens/Customer/RatingScreen";
 import MapScreen from "./screens/Customer/MapScreen";
 import FileComplaintScreen from "./screens/Customer/FileComplaint";
 
-
-
 //Other Screens
 import OnBoardingScreen from "./screens/OnBoardingScreen";
 import LoadingScreen from "./screens/LoadingScreen";
-
 
 //Service Provider Screens
 import SPAuthScreen from "./screens/ServiceProvider/Auth";
@@ -35,6 +33,9 @@ import ManageOrders from "./screens/ServiceProvider/ManageOrders";
 import OrderDetailsScreen from "./screens/ServiceProvider/OrderDetailsScreen";
 
 import { AddressProvider } from "./context/AddressContext"; // Import the Provider
+import SPMapScreen from "./screens/ServiceProvider/SPMapScreen";
+import ServiceProviderComplaints from "./screens/ServiceProvider/ManageComplaints";
+import { OrderStatusProvider } from "./context/OrderStatusContext";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -72,16 +73,16 @@ const TabNavigator = () => (
 // Stack Navigator for App
 export default function App() {
   return (
+    <OrderStatusProvider>
     <AddressProvider>
       <NavigationContainer>
         <Stack.Navigator initialRouteName="Loading">
-
           {/* Other Screens */}
-        <Stack.Screen
-          name="Loading"
-          component={LoadingScreen}
-          options={{ headerShown: false }}
-        />
+          <Stack.Screen
+            name="Loading"
+            component={LoadingScreen}
+            options={{ headerShown: false }}
+          />
           <Stack.Screen
             name="OnBoarding"
             component={OnBoardingScreen}
@@ -150,41 +151,56 @@ export default function App() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
-          name="ManageOrders"
-          component={ManageOrders}
-          options={{ headerShown: false }}
-        />
+            name="ManageOrders"
+            component={ManageOrders}
+            options={{ headerShown: false }}
+          />
           <Stack.Screen
-          name="ServiceProviderOptions"
-          component={ServiceProviderOptions}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="SPAccountDetails"
-          component={SPAccountDetails}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="SPServices"
-          component={SPServices}
-          options={{ headShown: false }}
-        />
+            name="ServiceProviderOptions"
+            component={ServiceProviderOptions}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="SPAccountDetails"
+            component={SPAccountDetails}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="SPServices"
+            component={SPServices}
+            options={{ headerShown: false }}
+          />
 
-        <Stack.Screen
-          name="OrderDetails"
-          component={OrderDetailsScreen}
-          options={{ headShown: false }}
-        />
+          <Stack.Screen
+            name="OrderDetails"
+            component={OrderDetailsScreen}
+            options={{ headerShown: false }}
+          />
 
+          <Stack.Screen
+            name="FileComplaint"
+            component={FileComplaintScreen}
+            options={{ headShown: false }}
+          />
 
-        <Stack.Screen
-          name="FileComplaint"
-          component={FileComplaintScreen}
-          options={{ headShown: false }}
-        />
+          <Stack.Screen
+            name="SPMapScreen"
+            component={SPMapScreen}
+            options={{ headerShown: false }}
+          />
+
+          
+          <Stack.Screen
+            name="ManageComplaints"
+            component={ServiceProviderComplaints}
+            options={{ headerShown: false }}
+          />
+
         </Stack.Navigator>
       </NavigationContainer>
+
     </AddressProvider>
+    </OrderStatusProvider>
   );
 }
 
