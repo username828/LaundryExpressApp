@@ -21,6 +21,10 @@ const ServiceProviderOptions = () => {
     navigation.navigate("ManageComplaints");
   };
 
+  const handleViewAnalytics = () => {
+    navigation.navigate("SPAnalytics");
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Service Provider Options</Text>
@@ -35,6 +39,9 @@ const ServiceProviderOptions = () => {
       </TouchableOpacity>
       <TouchableOpacity style={styles.button} onPress={handleManageComplaints}>
         <Text style={styles.buttonText}>Manage Complaints</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={handleViewAnalytics}>
+        <Text style={styles.buttonText}>View Analytics</Text>
       </TouchableOpacity>
     </View>
   );

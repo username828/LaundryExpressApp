@@ -37,6 +37,7 @@ import ManageOrders from "./screens/ServiceProvider/ManageOrders";
 import OrderDetailsScreen from "./screens/ServiceProvider/OrderDetailsScreen";
 import SPMapScreen from "./screens/ServiceProvider/SPMapScreen";
 import ServiceProviderComplaints from "./screens/ServiceProvider/ManageComplaints";
+import SPAnalytics from "./screens/ServiceProvider/SPAnalytics";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -189,6 +190,12 @@ export default function App() {
                 <Stack.Screen
                   name="SPMapScreen"
                   component={SPMapScreen}
+                  options={{ headerShown: false }}
+                />
+
+                <Stack.Screen
+                  name="SPAnalytics"
+                  component={SPAnalytics}
                   options={{ headerShown: false }}
                 />
 
