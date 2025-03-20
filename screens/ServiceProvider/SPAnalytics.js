@@ -9,7 +9,7 @@ import {
   ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LineChart } from "react-native-chart-kit";
+import { LineChart, PieChart } from "react-native-chart-kit";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db } from "../../firebaseConfig";
@@ -27,12 +27,37 @@ const SPAnalytics = () => {
     labels: [],
     datasets: [{ data: [] }],
   });
+  const [reviewData, setReviewData] = useState([
+    {
+      name: "Positive",
+      population: 0,
+      color: "#4CAF50",
+      legendFontColor: "#7F7F7F",
+      legendFontSize: 12,
+    },
+    {
+      name: "Neutral",
+      population: 0,
+      color: "#FFC107",
+      legendFontColor: "#7F7F7F",
+      legendFontSize: 12,
+    },
+    {
+      name: "Negative",
+      population: 0,
+      color: "#F44336",
+      legendFontColor: "#7F7F7F",
+      legendFontSize: 12,
+    },
+  ]);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [averageRevenue, setAverageRevenue] = useState(0);
   const [orderCount, setOrderCount] = useState(0);
+  const [hasReviews, setHasReviews] = useState(false);
 
   useEffect(() => {
     fetchAnalyticsData();
+    fetchReviewData();
   }, [timeFrame]);
 
   const fetchAnalyticsData = async () => {
@@ -81,6 +106,78 @@ const SPAnalytics = () => {
       console.error("Error fetching analytics data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchReviewData = async () => {
+    try {
+      if (!auth.currentUser) return;
+
+      // Get reviews for the current service provider from ratings collection
+      const reviewsQuery = query(
+        collection(db, "ratings"),
+        where("serviceProviderId", "==", auth.currentUser.uid)
+      );
+
+      const querySnapshot = await getDocs(reviewsQuery);
+      const reviews = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      if (reviews.length === 0) {
+        setHasReviews(false);
+        return;
+      }
+
+      setHasReviews(true);
+
+      // Count reviews by sentiment
+      let positive = 0;
+      let neutral = 0;
+      let negative = 0;
+
+      reviews.forEach((review) => {
+        const rating = review.rating || 0;
+        if (rating >= 4) {
+          positive++;
+        } else if (rating >= 3) {
+          neutral++;
+        } else {
+          negative++;
+        }
+      });
+
+      setReviewData([
+        {
+          name: "Positive",
+          population: positive,
+          color: "#4CAF50",
+          legendFontColor: "#7F7F7F",
+          legendFontSize: 12,
+        },
+        {
+          name: "Neutral",
+          population: neutral,
+          color: "#FFC107",
+          legendFontColor: "#7F7F7F",
+          legendFontSize: 12,
+        },
+        {
+          name: "Negative",
+          population: negative,
+          color: "#F44336",
+          legendFontColor: "#7F7F7F",
+          legendFontSize: 12,
+        },
+      ]);
+
+      console.log(
+        `Reviews found: ${reviews.length} (Positive: ${positive}, Neutral: ${neutral}, Negative: ${negative})`
+      );
+    } catch (error) {
+      console.error("Error fetching review data:", error);
+      setHasReviews(false);
     }
   };
 
@@ -255,6 +352,42 @@ const SPAnalytics = () => {
     );
   };
 
+  const renderReviewChart = () => {
+    if (loading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingText}>Loading review data...</Text>
+        </View>
+      );
+    }
+
+    if (!hasReviews || reviewData.every((item) => item.population === 0)) {
+      return (
+        <View style={styles.noDataContainer}>
+          <Text style={styles.noDataText}>
+            No reviews found to display analytics.
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.chartContainer}>
+        <PieChart
+          data={reviewData}
+          width={width - 32}
+          height={220}
+          chartConfig={chartConfig}
+          accessor="population"
+          backgroundColor="transparent"
+          paddingLeft="15"
+          absolute
+        />
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <Header title="Revenue Analytics" showBack />
@@ -331,6 +464,12 @@ const SPAnalytics = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Revenue Trends</Text>
           {renderChart()}
+        </View>
+
+        {/* Review Chart */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Customer Reviews</Text>
+          {renderReviewChart()}
         </View>
 
         {/* Stats Summary */}
