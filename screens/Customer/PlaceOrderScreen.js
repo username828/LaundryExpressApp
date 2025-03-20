@@ -1,51 +1,55 @@
 import React, { useState, useContext, useEffect } from "react";
 import {
-  StyleSheet,
-  Text,
   View,
-  TextInput,
+  Text,
   TouchableOpacity,
   Modal,
   FlatList,
   ActivityIndicator,
   ScrollView,
   Alert,
+  StyleSheet,
 } from "react-native";
-import { doc, setDoc, collection } from "firebase/firestore";
+import { addDoc, setDoc, collection, doc } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import { useNavigation } from "@react-navigation/core";
 import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { getAuth } from "firebase/auth";
 import { AddressContext } from "../../context/AddressContext";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "../../theme/ThemeContext";
 
-const auth = getAuth(); // Initialize Firebase Auth
+// Import custom components
+import Header from "../../components/Header";
+import Card from "../../components/Card";
+import Button from "../../components/Button";
+import Input from "../../components/Input";
+import CartItem from "../../components/CartItem";
+import QuantityControl from "../../components/QuantityControl";
+
+const auth = getAuth();
 
 const PlaceOrderScreen = ({ route }) => {
+  const theme = useTheme();
   const navigation = useNavigation();
-  const insets = useSafeAreaInsets();
   const { providerId, availableServices } = route.params;
+  const { currentAddress } = useContext(AddressContext);
 
-  const [serviceType, setServiceType] = useState("");
-  const [price, setPrice] = useState(0);
+  // Cart state
+  const [cart, setCart] = useState([]);
+  const [totalPrice, setTotalPrice] = useState(0);
+
+  // Form state
+  const [address, setAddress] = useState(currentAddress);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { currentAddress } = useContext(AddressContext);
-  const [address, setAddress] = useState(currentAddress);
-
+  // Date and time selection
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState("pickup"); // pickup or dropoff
-
-  // Separate pickup and dropoff date/time
   const [pickupDate, setPickupDate] = useState(null);
   const [pickupTime, setPickupTime] = useState(null);
   const [dropoffDate, setDropoffDate] = useState(null);
   const [dropoffTime, setDropoffTime] = useState(null);
-
-  // Generate dynamic dates for a week
   const [dates, setDates] = useState([]);
 
   // Time slots
@@ -57,6 +61,15 @@ const PlaceOrderScreen = ({ route }) => {
     "02:00 PM - 03:00 PM",
     "03:00 PM - 04:00 PM",
   ];
+
+  // Calculate total price when cart changes
+  useEffect(() => {
+    const total = cart.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
+    setTotalPrice(total);
+  }, [cart]);
 
   // Generate dates for a week starting from tomorrow
   useEffect(() => {
@@ -108,6 +121,46 @@ const PlaceOrderScreen = ({ route }) => {
     generateDates();
   }, []);
 
+  // Add item to cart
+  const addToCart = (service) => {
+    const existingItemIndex = cart.findIndex(
+      (item) => item.serviceType === service.name
+    );
+
+    if (existingItemIndex !== -1) {
+      // Item already in cart, increment quantity
+      const updatedCart = [...cart];
+      updatedCart[existingItemIndex].quantity += 1;
+      setCart(updatedCart);
+    } else {
+      // Add new item to cart
+      setCart([
+        ...cart,
+        {
+          serviceType: service.name,
+          price: service.price,
+          quantity: 1,
+          subtotal: service.price,
+        },
+      ]);
+    }
+  };
+
+  // Update item quantity in cart
+  const updateQuantity = (index, newQuantity) => {
+    if (newQuantity < 1) {
+      // Remove item if quantity is 0
+      const updatedCart = cart.filter((_, i) => i !== index);
+      setCart(updatedCart);
+    } else {
+      // Update quantity
+      const updatedCart = [...cart];
+      updatedCart[index].quantity = newQuantity;
+      updatedCart[index].subtotal = updatedCart[index].price * newQuantity;
+      setCart(updatedCart);
+    }
+  };
+
   // Convert date string to Date object for comparison
   const getDateFromString = (dateString) => {
     if (!dateString) return null;
@@ -134,10 +187,8 @@ const PlaceOrderScreen = ({ route }) => {
 
     // Handle year rollover for future dates
     if (month === "Dec" && today.getMonth() === 0) {
-      // if it's January but we see December dates
       date.setFullYear(year - 1);
     } else if (month === "Jan" && today.getMonth() === 11) {
-      // if it's December but we see January dates
       date.setFullYear(year + 1);
     }
 
@@ -146,15 +197,12 @@ const PlaceOrderScreen = ({ route }) => {
 
   // Validate date selection
   const validateDropoffDate = (selectedDate) => {
-    if (!pickupDate) return true; // No pickup date set yet
+    if (!pickupDate) return true;
 
     const pickupDateTime = getDateFromString(pickupDate);
     const dropoffDateTime = getDateFromString(selectedDate);
 
-    // Ensure dropoff is at least 1 day after pickup
     if (pickupDateTime && dropoffDateTime) {
-      // Compare by counting milliseconds difference
-      // A full day is 86400000 milliseconds
       const timeDiff = dropoffDateTime.getTime() - pickupDateTime.getTime();
       return timeDiff >= 86400000; // At least one day difference
     }
@@ -162,10 +210,10 @@ const PlaceOrderScreen = ({ route }) => {
     return true;
   };
 
-  // For UI updates
+  // Check if form is valid
   const isFormValid = () => {
     return (
-      serviceType &&
+      cart.length > 0 &&
       address &&
       pickupDate &&
       pickupTime &&
@@ -174,30 +222,33 @@ const PlaceOrderScreen = ({ route }) => {
     );
   };
 
+  // Handle order placement
   const handlePlaceOrder = async () => {
-    if (
-      !serviceType ||
-      !address ||
-      !pickupDate ||
-      !pickupTime ||
-      !dropoffDate ||
-      !dropoffTime
-    ) {
-      alert("Please fill all fields before placing an order.");
+    if (!isFormValid()) {
+      Alert.alert(
+        "Incomplete Form",
+        "Please fill all required fields before placing an order."
+      );
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const orderRef = doc(collection(db, "orders"));
-      const orderId = orderRef.id;
+      // Create a new document reference with an auto-generated ID
+      const ordersRef = collection(db, "orders");
+
+      // Prepare order data
       const orderData = {
-        orderId,
         customerId: auth.currentUser?.uid,
         serviceProviderId: providerId,
-        serviceType: serviceType,
-        price: price,
+        services: cart.map((item) => ({
+          serviceType: item.serviceType,
+          quantity: item.quantity,
+          price: item.price,
+          subtotal: item.subtotal,
+        })),
+        totalPrice: totalPrice,
         address: address,
         status: "Order Placed",
         orderPickup: {
@@ -212,16 +263,25 @@ const PlaceOrderScreen = ({ route }) => {
       };
 
       console.log("Order placed: ", orderData);
-      await setDoc(orderRef, orderData);
+
+      // Add document to Firestore
+      const orderRef = await addDoc(ordersRef, orderData);
+
+      // Update the document with its ID
+      const orderId = orderRef.id;
+      await setDoc(orderRef, { orderId }, { merge: true });
+
+      // Navigate to tracking screen with the order details
       navigation.navigate("Track", { orderId, providerId });
     } catch (error) {
       console.error("Error placing order: ", error);
-      alert("Failed to place order. Please try again.");
+      Alert.alert("Error", "Failed to place order. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // Modal control functions
   const openPickupModal = () => {
     setModalType("pickup");
     setModalVisible(true);
@@ -240,7 +300,6 @@ const PlaceOrderScreen = ({ route }) => {
   };
 
   const confirmDateTime = () => {
-    // For dropoff, check if the selected date is valid
     if (modalType === "dropoff" && !validateDropoffDate(dropoffDate)) {
       Alert.alert(
         "Invalid Drop-off Date",
@@ -248,7 +307,6 @@ const PlaceOrderScreen = ({ route }) => {
       );
       return;
     }
-
     setModalVisible(false);
   };
 
@@ -256,7 +314,6 @@ const PlaceOrderScreen = ({ route }) => {
   useEffect(() => {
     if (pickupDate && dropoffDate) {
       if (!validateDropoffDate(dropoffDate)) {
-        // Reset dropoff selections if they're invalid
         setDropoffDate(null);
         setDropoffTime(null);
       }
@@ -264,123 +321,204 @@ const PlaceOrderScreen = ({ route }) => {
   }, [pickupDate]);
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={[styles.header, { marginTop: insets.top > 0 ? 0 : 20 }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Place Your Order</Text>
-        <View style={styles.backButton} />
-      </View>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
+      <Header
+        title="Place Your Order"
+        leftIcon="arrow-back"
+        onLeftPress={() => navigation.goBack()}
+      />
 
-      <ScrollView style={styles.content}>
+      <ScrollView>
+        {/* Services Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select Service</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            Available Services
+          </Text>
           <FlatList
             data={availableServices}
             keyExtractor={(item, index) => index.toString()}
             horizontal
             showsHorizontalScrollIndicator={false}
             renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.serviceCard,
-                  serviceType === item.name && styles.selectedService,
-                ]}
-                onPress={() => {
-                  setServiceType(item.name);
-                  setPrice(item.price);
-                }}
-              >
-                <FontAwesome5
-                  name="tshirt"
-                  size={24}
-                  color={serviceType === item.name ? "#FFFFFF" : "#007AFF"}
-                  style={styles.serviceIcon}
-                />
-                <Text
-                  style={[
-                    styles.serviceText,
-                    serviceType === item.name && styles.selectedServiceText,
-                  ]}
-                >
-                  {item.name}
-                </Text>
-                <Text
-                  style={[
-                    styles.servicePriceText,
-                    serviceType === item.name && styles.selectedServiceText,
-                  ]}
-                >
-                  ${item.price.toFixed(2)}
-                </Text>
-              </TouchableOpacity>
+              <Card style={styles.serviceCard}>
+                <View style={styles.serviceContent}>
+                  <FontAwesome5
+                    name="tshirt"
+                    size={24}
+                    color={theme.colors.primary}
+                    style={styles.serviceIcon}
+                  />
+                  <Text
+                    style={[styles.serviceText, { color: theme.colors.text }]}
+                  >
+                    {item.name}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.servicePriceText,
+                      { color: theme.colors.secondary },
+                    ]}
+                  >
+                    ${item.price.toFixed(2)}
+                  </Text>
+                  <Button
+                    title="Add to Cart"
+                    onPress={() => addToCart(item)}
+                    size="small"
+                    style={{ marginTop: 10 }}
+                  />
+                </View>
+              </Card>
             )}
           />
         </View>
 
+        {/* Cart Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Estimated Price</Text>
-          <View style={styles.priceContainer}>
-            <FontAwesome5 name="money-bill-wave" size={20} color="#34C759" />
-            <Text style={styles.price}>${price.toFixed(2)}</Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pickup Address</Text>
-          <View style={styles.inputContainer}>
-            <Ionicons name="location-outline" size={20} color="#555" />
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your address"
-              value={address}
-              onChangeText={setAddress}
-            />
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            1. Pickup Date & Time <Text style={styles.requiredText}>*</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            Your Cart
           </Text>
-          <TouchableOpacity
-            style={styles.selectTimeButton}
-            onPress={openPickupModal}
-          >
-            <FontAwesome5 name="calendar-alt" size={18} color="#007AFF" />
-            <Text style={styles.selectTimeText}>
-              {pickupDate && pickupTime
-                ? `${pickupDate}, ${pickupTime}`
-                : "Select Pickup Date & Time"}
-            </Text>
-            <Ionicons name="chevron-forward" size={18} color="#8E8E93" />
-          </TouchableOpacity>
+          {cart.length === 0 ? (
+            <Card style={styles.emptyCartCard}>
+              <Text
+                style={[
+                  styles.emptyCartText,
+                  { color: theme.colors.textLight },
+                ]}
+              >
+                Your cart is empty. Add services to continue.
+              </Text>
+            </Card>
+          ) : (
+            <>
+              {cart.map((item, index) => (
+                <CartItem
+                  key={index}
+                  title={item.serviceType}
+                  price={item.price}
+                  quantity={item.quantity}
+                  onUpdateQuantity={(newQuantity) =>
+                    updateQuantity(index, newQuantity)
+                  }
+                />
+              ))}
+
+              {/* Order Summary */}
+              <Card style={styles.summaryCard}>
+                <Text
+                  style={[styles.summaryTitle, { color: theme.colors.text }]}
+                >
+                  Order Summary
+                </Text>
+                <View style={styles.summaryRow}>
+                  <Text style={{ color: theme.colors.textLight }}>
+                    Items ({cart.reduce((sum, item) => sum + item.quantity, 0)})
+                  </Text>
+                  <Text style={{ color: theme.colors.text, fontWeight: "600" }}>
+                    ${totalPrice.toFixed(2)}
+                  </Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.summaryRow}>
+                  <Text style={{ color: theme.colors.text, fontWeight: "600" }}>
+                    Total
+                  </Text>
+                  <Text
+                    style={{
+                      color: theme.colors.primary,
+                      fontWeight: "700",
+                      fontSize: 18,
+                    }}
+                  >
+                    ${totalPrice.toFixed(2)}
+                  </Text>
+                </View>
+              </Card>
+            </>
+          )}
         </View>
 
+        {/* Address Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            2. Drop-off Date & Time <Text style={styles.requiredText}>*</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            Pickup Address
+          </Text>
+          <Input
+            leftIcon="location-outline"
+            placeholder="Enter your address"
+            value={address}
+            onChangeText={setAddress}
+          />
+        </View>
+
+        {/* Pickup Date & Time */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            1. Pickup Date & Time{" "}
+            <Text style={{ color: theme.colors.error }}>*</Text>
           </Text>
           <TouchableOpacity
             style={[
-              styles.selectTimeButton,
-              !pickupDate && !pickupTime && styles.disabledButton,
+              styles.timeSelector,
+              { backgroundColor: theme.colors.card },
             ]}
-            onPress={openDropoffModal}
+            onPress={openPickupModal}
           >
             <FontAwesome5
               name="calendar-alt"
               size={18}
-              color={pickupDate && pickupTime ? "#007AFF" : "#A2A2A2"}
+              color={theme.colors.primary}
+            />
+            <Text
+              style={[styles.timeSelectorText, { color: theme.colors.text }]}
+            >
+              {pickupDate && pickupTime
+                ? `${pickupDate}, ${pickupTime}`
+                : "Select Pickup Date & Time"}
+            </Text>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={theme.colors.textLight}
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Dropoff Date & Time */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            2. Drop-off Date & Time{" "}
+            <Text style={{ color: theme.colors.error }}>*</Text>
+          </Text>
+          <TouchableOpacity
+            style={[
+              styles.timeSelector,
+              { backgroundColor: theme.colors.card },
+              !pickupDate && !pickupTime && { opacity: 0.6 },
+            ]}
+            onPress={openDropoffModal}
+            disabled={!pickupDate || !pickupTime}
+          >
+            <FontAwesome5
+              name="calendar-alt"
+              size={18}
+              color={
+                pickupDate && pickupTime
+                  ? theme.colors.primary
+                  : theme.colors.textLight
+              }
             />
             <Text
               style={[
-                styles.selectTimeText,
-                !pickupDate && !pickupTime && { color: "#A2A2A2" },
+                styles.timeSelectorText,
+                {
+                  color:
+                    pickupDate && pickupTime
+                      ? theme.colors.text
+                      : theme.colors.textLight,
+                },
               ]}
             >
               {dropoffDate && dropoffTime
@@ -392,42 +530,44 @@ const PlaceOrderScreen = ({ route }) => {
             <Ionicons
               name="chevron-forward"
               size={18}
-              color={pickupDate && pickupTime ? "#8E8E93" : "#A2A2A2"}
+              color={
+                pickupDate && pickupTime
+                  ? theme.colors.textLight
+                  : theme.colors.textLight
+              }
             />
           </TouchableOpacity>
           {pickupDate && pickupTime && (
-            <Text style={styles.helperText}>
+            <Text
+              style={[styles.helperText, { color: theme.colors.textLight }]}
+            >
               Drop-off must be scheduled at least one day after pickup
             </Text>
           )}
         </View>
 
-        <TouchableOpacity
-          style={[
-            styles.placeOrderButton,
-            !isFormValid() && styles.disabledButton,
-            isSubmitting && styles.loadingButton,
-          ]}
+        {/* Place Order Button */}
+        <Button
+          title="Place Order"
+          icon="cart"
           onPress={handlePlaceOrder}
+          loading={isSubmitting}
           disabled={!isFormValid() || isSubmitting}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <>
-              <FontAwesome5 name="shopping-cart" size={18} color="#fff" />
-              <Text style={styles.placeOrderText}> Place Order</Text>
-            </>
-          )}
-        </TouchableOpacity>
+          style={styles.placeOrderButton}
+        />
       </ScrollView>
 
       {/* Date & Time Picker Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: theme.colors.card },
+            ]}
+          >
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
                 Choose {modalType === "pickup" ? "Pickup" : "Drop-off"} Date &
                 Time
               </Text>
@@ -435,35 +575,49 @@ const PlaceOrderScreen = ({ route }) => {
                 style={styles.closeButton}
                 onPress={() => setModalVisible(false)}
               >
-                <Ionicons name="close" size={24} color="#8E8E93" />
+                <Ionicons
+                  name="close"
+                  size={24}
+                  color={theme.colors.textLight}
+                />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalSubtitle}>Select a Date</Text>
+            <Text style={[styles.modalSubtitle, { color: theme.colors.text }]}>
+              Select a Date
+            </Text>
             {modalType === "dropoff" && pickupDate && (
-              <Text style={styles.modalInstructions}>
+              <Text
+                style={[
+                  styles.modalInstructions,
+                  { color: theme.colors.textLight },
+                ]}
+              >
                 Please select a date that is at least one day after your pickup
                 date ({pickupDate})
               </Text>
             )}
+
             <FlatList
               data={dates}
               keyExtractor={(item) => item.id}
               horizontal
               showsHorizontalScrollIndicator={false}
               renderItem={({ item }) => {
-                // For dropoff, check if the date is valid (at least 1 day after pickup)
                 const isValidDropoffDate =
                   modalType === "pickup" || validateDropoffDate(item.date);
+                const isSelected =
+                  modalType === "pickup"
+                    ? pickupDate === item.date
+                    : dropoffDate === item.date;
 
                 return (
                   <TouchableOpacity
                     style={[
                       styles.dateCard,
-                      (modalType === "pickup"
-                        ? pickupDate === item.date
-                        : dropoffDate === item.date) && styles.dateCardSelected,
-                      !isValidDropoffDate && styles.disabledDateCard,
+                      { backgroundColor: theme.colors.background },
+                      isSelected && { backgroundColor: theme.colors.primary },
+                      !isValidDropoffDate && { opacity: 0.5 },
                     ]}
                     onPress={() => {
                       if (modalType === "pickup") {
@@ -482,11 +636,8 @@ const PlaceOrderScreen = ({ route }) => {
                     <Text
                       style={[
                         styles.dateDay,
-                        (modalType === "pickup"
-                          ? pickupDate === item.date
-                          : dropoffDate === item.date) &&
-                          styles.dateTextSelected,
-                        !isValidDropoffDate && styles.disabledDateText,
+                        { color: theme.colors.textLight },
+                        isSelected && { color: theme.colors.white },
                       ]}
                     >
                       {item.day}
@@ -494,11 +645,8 @@ const PlaceOrderScreen = ({ route }) => {
                     <Text
                       style={[
                         styles.dateText,
-                        (modalType === "pickup"
-                          ? pickupDate === item.date
-                          : dropoffDate === item.date) &&
-                          styles.dateTextSelected,
-                        !isValidDropoffDate && styles.disabledDateText,
+                        { color: theme.colors.text },
+                        isSelected && { color: theme.colors.white },
                       ]}
                     >
                       {item.date}
@@ -508,62 +656,62 @@ const PlaceOrderScreen = ({ route }) => {
               }}
             />
 
-            <Text style={styles.modalSubtitle}>Select a Time</Text>
+            <Text style={[styles.modalSubtitle, { color: theme.colors.text }]}>
+              Select a Time
+            </Text>
             <FlatList
               data={timeSlots}
               keyExtractor={(item, index) => index.toString()}
               horizontal
               showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.timeCard,
-                    (modalType === "pickup"
-                      ? pickupTime === item
-                      : dropoffTime === item) && styles.timeCardSelected,
-                  ]}
-                  onPress={() => {
-                    if (modalType === "pickup") {
-                      setPickupTime(item);
-                    } else {
-                      setDropoffTime(item);
-                    }
-                  }}
-                >
-                  <Ionicons
-                    name="time-outline"
-                    size={16}
-                    color={
-                      (
-                        modalType === "pickup"
-                          ? pickupTime === item
-                          : dropoffTime === item
-                      )
-                        ? "#FFFFFF"
-                        : "#007AFF"
-                    }
-                    style={styles.timeIcon}
-                  />
-                  <Text
+              renderItem={({ item }) => {
+                const isSelected =
+                  modalType === "pickup"
+                    ? pickupTime === item
+                    : dropoffTime === item;
+
+                return (
+                  <TouchableOpacity
                     style={[
-                      styles.timeText,
-                      (modalType === "pickup"
-                        ? pickupTime === item
-                        : dropoffTime === item) && styles.timeTextSelected,
+                      styles.timeCard,
+                      { backgroundColor: theme.colors.background },
+                      isSelected && { backgroundColor: theme.colors.primary },
                     ]}
+                    onPress={() => {
+                      if (modalType === "pickup") {
+                        setPickupTime(item);
+                      } else {
+                        setDropoffTime(item);
+                      }
+                    }}
                   >
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              )}
+                    <Ionicons
+                      name="time-outline"
+                      size={16}
+                      color={
+                        isSelected ? theme.colors.white : theme.colors.primary
+                      }
+                      style={styles.timeIcon}
+                    />
+                    <Text
+                      style={[
+                        styles.timeText,
+                        { color: theme.colors.text },
+                        isSelected && { color: theme.colors.white },
+                      ]}
+                    >
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }}
             />
 
-            <TouchableOpacity
-              style={styles.doneButton}
+            <Button
+              title="Confirm"
               onPress={confirmDateTime}
-            >
-              <Text style={styles.doneButtonText}>Confirm</Text>
-            </TouchableOpacity>
+              style={styles.confirmButton}
+            />
           </View>
         </View>
       </Modal>
@@ -574,59 +722,25 @@ const PlaceOrderScreen = ({ route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F2F2F7",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5EA",
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000000",
-  },
-  content: {
-    flex: 1,
-    padding: 16,
   },
   section: {
-    marginBottom: 24,
+    padding: 16,
+    marginBottom: 8,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
-    color: "#3C3C43",
-    marginBottom: 12,
+    marginBottom: 16,
   },
   serviceCard: {
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    width: 160,
     marginRight: 12,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    minWidth: 120,
+    padding: 0,
+    overflow: "hidden",
   },
-  selectedService: {
-    backgroundColor: "#007AFF",
+  serviceContent: {
+    alignItems: "center",
+    padding: 16,
   },
   serviceIcon: {
     marginBottom: 8,
@@ -634,106 +748,66 @@ const styles = StyleSheet.create({
   serviceText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
     marginBottom: 4,
+    textAlign: "center",
   },
   servicePriceText: {
     fontSize: 14,
-    color: "#8E8E93",
+    fontWeight: "500",
   },
-  selectedServiceText: {
-    color: "#FFFFFF",
-  },
-  priceContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  price: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#34C759",
-    marginLeft: 12,
-  },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  input: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 16,
-    color: "#3C3C43",
-  },
-  selectTimeButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  selectTimeText: {
-    flex: 1,
-    fontSize: 16,
-    color: "#3C3C43",
-    marginLeft: 12,
-  },
-  placeOrderButton: {
-    backgroundColor: "#007AFF",
-    flexDirection: "row",
+  emptyCartCard: {
+    padding: 24,
     alignItems: "center",
     justifyContent: "center",
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 24,
-    shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  disabledButton: {
-    backgroundColor: "#A2A2A2",
-    shadowColor: "#A2A2A2",
+  emptyCartText: {
+    fontSize: 14,
+    textAlign: "center",
   },
-  loadingButton: {
-    backgroundColor: "#007AFF",
+  summaryCard: {
+    marginTop: 16,
   },
-  placeOrderText: {
-    color: "#FFFFFF",
+  summaryTitle: {
     fontSize: 16,
     fontWeight: "600",
-    marginLeft: 8,
+    marginBottom: 12,
   },
-  modalContainer: {
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#E0E0E0",
+    marginVertical: 12,
+  },
+  timeSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 12,
+  },
+  timeSelectorText: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 16,
+  },
+  helperText: {
+    fontSize: 12,
+    marginTop: 6,
+    fontStyle: "italic",
+  },
+  placeOrderButton: {
+    marginHorizontal: 16,
+    marginBottom: 24,
+  },
+  modalOverlay: {
     flex: 1,
     justifyContent: "flex-end",
     backgroundColor: "rgba(0,0,0,0.5)",
   },
   modalContent: {
-    backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -748,7 +822,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#000000",
   },
   closeButton: {
     padding: 4,
@@ -756,7 +829,6 @@ const styles = StyleSheet.create({
   modalSubtitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#3C3C43",
     marginBottom: 12,
     marginTop: 16,
   },
@@ -764,26 +836,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginRight: 12,
-    backgroundColor: "#F2F2F7",
     alignItems: "center",
     minWidth: 100,
-  },
-  dateCardSelected: {
-    backgroundColor: "#007AFF",
   },
   dateDay: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#3C3C43",
     marginBottom: 4,
   },
   dateText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#3C3C43",
-  },
-  dateTextSelected: {
-    color: "#FFFFFF",
   },
   timeCard: {
     flexDirection: "row",
@@ -791,55 +854,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     marginRight: 12,
-    backgroundColor: "#F2F2F7",
     minWidth: 160,
-  },
-  timeCardSelected: {
-    backgroundColor: "#007AFF",
   },
   timeIcon: {
     marginRight: 8,
   },
   timeText: {
     fontSize: 14,
-    color: "#3C3C43",
   },
-  timeTextSelected: {
-    color: "#FFFFFF",
-  },
-  doneButton: {
-    backgroundColor: "#007AFF",
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
+  confirmButton: {
     marginTop: 24,
-  },
-  doneButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  disabledDateCard: {
-    backgroundColor: "#F2F2F7",
-    opacity: 0.5,
-  },
-  disabledDateText: {
-    color: "#8E8E93",
-    opacity: 0.5,
-  },
-  requiredText: {
-    color: "#FF3B30",
-    fontSize: 16,
-  },
-  helperText: {
-    fontSize: 12,
-    color: "#8E8E93",
-    marginTop: 6,
-    fontStyle: "italic",
   },
   modalInstructions: {
     fontSize: 13,
-    color: "#8E8E93",
     marginBottom: 10,
     fontStyle: "italic",
     textAlign: "center",

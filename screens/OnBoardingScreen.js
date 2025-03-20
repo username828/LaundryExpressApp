@@ -1,6 +1,7 @@
 import { useNavigation } from "@react-navigation/core";
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 
 const OnboardingScreen = () => {
   const navigation = useNavigation();
