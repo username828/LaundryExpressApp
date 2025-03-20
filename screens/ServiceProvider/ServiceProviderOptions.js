@@ -17,9 +17,9 @@ const ServiceProviderOptions = () => {
     navigation.navigate("ManageOrders");
   };
 
-  const handleManageComplaints=()=>{
+  const handleManageComplaints = () => {
     navigation.navigate("ManageComplaints");
-  }
+  };
 
   return (
     <View style={styles.container}>
@@ -45,27 +45,36 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
-    backgroundColor: "#f9f9f9",
+    padding: 24,
+    backgroundColor: "#f5f5f5",
   },
   title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
+    fontSize: 28,
+    fontWeight: "600",
+    marginBottom: 32,
+    color: "#333333",
+    textAlign: "center",
   },
   button: {
-    backgroundColor: "#007BFF",
-    borderRadius: 8,
-    paddingVertical: 15,
-    paddingHorizontal: 30,
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     marginVertical: 10,
     width: "100%",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   buttonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
+    color: "#333333",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
 

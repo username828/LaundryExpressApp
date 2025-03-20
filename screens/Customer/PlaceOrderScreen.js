@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -8,6 +8,8 @@ import {
   Modal,
   FlatList,
   ActivityIndicator,
+  ScrollView,
+  Alert,
 } from "react-native";
 import { doc, setDoc, collection } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
@@ -35,19 +37,18 @@ const PlaceOrderScreen = ({ route }) => {
   const [address, setAddress] = useState(currentAddress);
 
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [selectedTime, setSelectedTime] = useState(null);
+  const [modalType, setModalType] = useState("pickup"); // pickup or dropoff
 
-  // Sample data for dates and times
-  const dates = [
-    { id: "1", day: "Tomorrow", date: "Oct 05" },
-    { id: "2", day: "Sunday", date: "Oct 06" },
-    { id: "3", day: "Monday", date: "Oct 07" },
-    { id: "4", day: "Tuesday", date: "Oct 08" },
-    { id: "5", day: "Wednesday", date: "Oct 09" },
-    { id: "6", day: "Thursday", date: "Oct 10" },
-  ];
+  // Separate pickup and dropoff date/time
+  const [pickupDate, setPickupDate] = useState(null);
+  const [pickupTime, setPickupTime] = useState(null);
+  const [dropoffDate, setDropoffDate] = useState(null);
+  const [dropoffTime, setDropoffTime] = useState(null);
 
+  // Generate dynamic dates for a week
+  const [dates, setDates] = useState([]);
+
+  // Time slots
   const timeSlots = [
     "08:00 AM - 09:00 AM",
     "09:00 AM - 10:00 AM",
@@ -57,8 +58,131 @@ const PlaceOrderScreen = ({ route }) => {
     "03:00 PM - 04:00 PM",
   ];
 
+  // Generate dates for a week starting from tomorrow
+  useEffect(() => {
+    const generateDates = () => {
+      const daysOfWeek = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ];
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+
+      const dates = [];
+      const today = new Date();
+
+      for (let i = 1; i <= 7; i++) {
+        const date = new Date();
+        date.setDate(today.getDate() + i);
+
+        const dayName = i === 1 ? "Tomorrow" : daysOfWeek[date.getDay()];
+        const formattedDate = `${months[date.getMonth()]} ${date.getDate()}`;
+
+        dates.push({
+          id: i.toString(),
+          day: dayName,
+          date: formattedDate,
+        });
+      }
+
+      setDates(dates);
+    };
+
+    generateDates();
+  }, []);
+
+  // Convert date string to Date object for comparison
+  const getDateFromString = (dateString) => {
+    if (!dateString) return null;
+
+    const monthsMap = {
+      Jan: 0,
+      Feb: 1,
+      Mar: 2,
+      Apr: 3,
+      May: 4,
+      Jun: 5,
+      Jul: 6,
+      Aug: 7,
+      Sep: 8,
+      Oct: 9,
+      Nov: 10,
+      Dec: 11,
+    };
+
+    const [month, day] = dateString.split(" ");
+    const today = new Date();
+    const year = today.getFullYear();
+    const date = new Date(year, monthsMap[month], parseInt(day));
+
+    // Handle year rollover for future dates
+    if (month === "Dec" && today.getMonth() === 0) {
+      // if it's January but we see December dates
+      date.setFullYear(year - 1);
+    } else if (month === "Jan" && today.getMonth() === 11) {
+      // if it's December but we see January dates
+      date.setFullYear(year + 1);
+    }
+
+    return date;
+  };
+
+  // Validate date selection
+  const validateDropoffDate = (selectedDate) => {
+    if (!pickupDate) return true; // No pickup date set yet
+
+    const pickupDateTime = getDateFromString(pickupDate);
+    const dropoffDateTime = getDateFromString(selectedDate);
+
+    // Ensure dropoff is at least 1 day after pickup
+    if (pickupDateTime && dropoffDateTime) {
+      // Compare by counting milliseconds difference
+      // A full day is 86400000 milliseconds
+      const timeDiff = dropoffDateTime.getTime() - pickupDateTime.getTime();
+      return timeDiff >= 86400000; // At least one day difference
+    }
+
+    return true;
+  };
+
+  // For UI updates
+  const isFormValid = () => {
+    return (
+      serviceType &&
+      address &&
+      pickupDate &&
+      pickupTime &&
+      dropoffDate &&
+      dropoffTime
+    );
+  };
+
   const handlePlaceOrder = async () => {
-    if (!serviceType || !address || !selectedDate || !selectedTime) {
+    if (
+      !serviceType ||
+      !address ||
+      !pickupDate ||
+      !pickupTime ||
+      !dropoffDate ||
+      !dropoffTime
+    ) {
       alert("Please fill all fields before placing an order.");
       return;
     }
@@ -76,7 +200,14 @@ const PlaceOrderScreen = ({ route }) => {
         price: price,
         address: address,
         status: "Order Placed",
-        orderTime: `${selectedDate} ${selectedTime}`,
+        orderPickup: {
+          date: pickupDate,
+          time: pickupTime,
+        },
+        orderDropoff: {
+          date: dropoffDate,
+          time: dropoffTime,
+        },
         createdAt: new Date().toISOString(),
       };
 
@@ -91,6 +222,47 @@ const PlaceOrderScreen = ({ route }) => {
     }
   };
 
+  const openPickupModal = () => {
+    setModalType("pickup");
+    setModalVisible(true);
+  };
+
+  const openDropoffModal = () => {
+    if (!pickupDate || !pickupTime) {
+      Alert.alert(
+        "Pickup Time Required",
+        "Please select a pickup date and time first before scheduling the drop-off."
+      );
+      return;
+    }
+    setModalType("dropoff");
+    setModalVisible(true);
+  };
+
+  const confirmDateTime = () => {
+    // For dropoff, check if the selected date is valid
+    if (modalType === "dropoff" && !validateDropoffDate(dropoffDate)) {
+      Alert.alert(
+        "Invalid Drop-off Date",
+        "Drop-off date must be at least one day after pickup date."
+      );
+      return;
+    }
+
+    setModalVisible(false);
+  };
+
+  // Update dropoff date if pickup date changes and makes current dropoff invalid
+  useEffect(() => {
+    if (pickupDate && dropoffDate) {
+      if (!validateDropoffDate(dropoffDate)) {
+        // Reset dropoff selections if they're invalid
+        setDropoffDate(null);
+        setDropoffTime(null);
+      }
+    }
+  }, [pickupDate]);
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={[styles.header, { marginTop: insets.top > 0 ? 0 : 20 }]}>
@@ -104,7 +276,7 @@ const PlaceOrderScreen = ({ route }) => {
         <View style={styles.backButton} />
       </View>
 
-      <View style={styles.content}>
+      <ScrollView style={styles.content}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Select Service</Text>
           <FlatList
@@ -172,36 +344,72 @@ const PlaceOrderScreen = ({ route }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Order Time</Text>
+          <Text style={styles.sectionTitle}>
+            1. Pickup Date & Time <Text style={styles.requiredText}>*</Text>
+          </Text>
           <TouchableOpacity
             style={styles.selectTimeButton}
-            onPress={() => setModalVisible(true)}
+            onPress={openPickupModal}
           >
             <FontAwesome5 name="calendar-alt" size={18} color="#007AFF" />
             <Text style={styles.selectTimeText}>
-              {selectedDate && selectedTime
-                ? `${selectedDate}, ${selectedTime}`
-                : "Pick a Date & Time"}
+              {pickupDate && pickupTime
+                ? `${pickupDate}, ${pickupTime}`
+                : "Select Pickup Date & Time"}
             </Text>
             <Ionicons name="chevron-forward" size={18} color="#8E8E93" />
           </TouchableOpacity>
         </View>
 
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            2. Drop-off Date & Time <Text style={styles.requiredText}>*</Text>
+          </Text>
+          <TouchableOpacity
+            style={[
+              styles.selectTimeButton,
+              !pickupDate && !pickupTime && styles.disabledButton,
+            ]}
+            onPress={openDropoffModal}
+          >
+            <FontAwesome5
+              name="calendar-alt"
+              size={18}
+              color={pickupDate && pickupTime ? "#007AFF" : "#A2A2A2"}
+            />
+            <Text
+              style={[
+                styles.selectTimeText,
+                !pickupDate && !pickupTime && { color: "#A2A2A2" },
+              ]}
+            >
+              {dropoffDate && dropoffTime
+                ? `${dropoffDate}, ${dropoffTime}`
+                : pickupDate && pickupTime
+                ? "Select Drop-off Date & Time"
+                : "Complete pickup selection first"}
+            </Text>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={pickupDate && pickupTime ? "#8E8E93" : "#A2A2A2"}
+            />
+          </TouchableOpacity>
+          {pickupDate && pickupTime && (
+            <Text style={styles.helperText}>
+              Drop-off must be scheduled at least one day after pickup
+            </Text>
+          )}
+        </View>
+
         <TouchableOpacity
           style={[
             styles.placeOrderButton,
-            (!serviceType || !address || !selectedDate || !selectedTime) &&
-              styles.disabledButton,
+            !isFormValid() && styles.disabledButton,
             isSubmitting && styles.loadingButton,
           ]}
           onPress={handlePlaceOrder}
-          disabled={
-            !serviceType ||
-            !address ||
-            !selectedDate ||
-            !selectedTime ||
-            isSubmitting
-          }
+          disabled={!isFormValid() || isSubmitting}
         >
           {isSubmitting ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
@@ -212,14 +420,17 @@ const PlaceOrderScreen = ({ route }) => {
             </>
           )}
         </TouchableOpacity>
-      </View>
+      </ScrollView>
 
       {/* Date & Time Picker Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Choose Date & Time</Text>
+              <Text style={styles.modalTitle}>
+                Choose {modalType === "pickup" ? "Pickup" : "Drop-off"} Date &
+                Time
+              </Text>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setModalVisible(false)}
@@ -229,37 +440,72 @@ const PlaceOrderScreen = ({ route }) => {
             </View>
 
             <Text style={styles.modalSubtitle}>Select a Date</Text>
+            {modalType === "dropoff" && pickupDate && (
+              <Text style={styles.modalInstructions}>
+                Please select a date that is at least one day after your pickup
+                date ({pickupDate})
+              </Text>
+            )}
             <FlatList
               data={dates}
               keyExtractor={(item) => item.id}
               horizontal
               showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.dateCard,
-                    selectedDate === item.date && styles.dateCardSelected,
-                  ]}
-                  onPress={() => setSelectedDate(item.date)}
-                >
-                  <Text
+              renderItem={({ item }) => {
+                // For dropoff, check if the date is valid (at least 1 day after pickup)
+                const isValidDropoffDate =
+                  modalType === "pickup" || validateDropoffDate(item.date);
+
+                return (
+                  <TouchableOpacity
                     style={[
-                      styles.dateDay,
-                      selectedDate === item.date && styles.dateTextSelected,
+                      styles.dateCard,
+                      (modalType === "pickup"
+                        ? pickupDate === item.date
+                        : dropoffDate === item.date) && styles.dateCardSelected,
+                      !isValidDropoffDate && styles.disabledDateCard,
                     ]}
+                    onPress={() => {
+                      if (modalType === "pickup") {
+                        setPickupDate(item.date);
+                      } else if (isValidDropoffDate) {
+                        setDropoffDate(item.date);
+                      } else {
+                        Alert.alert(
+                          "Invalid Selection",
+                          `Drop-off date must be at least one day after pickup date (${pickupDate}).`
+                        );
+                      }
+                    }}
+                    disabled={!isValidDropoffDate && modalType === "dropoff"}
                   >
-                    {item.day}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.dateText,
-                      selectedDate === item.date && styles.dateTextSelected,
-                    ]}
-                  >
-                    {item.date}
-                  </Text>
-                </TouchableOpacity>
-              )}
+                    <Text
+                      style={[
+                        styles.dateDay,
+                        (modalType === "pickup"
+                          ? pickupDate === item.date
+                          : dropoffDate === item.date) &&
+                          styles.dateTextSelected,
+                        !isValidDropoffDate && styles.disabledDateText,
+                      ]}
+                    >
+                      {item.day}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.dateText,
+                        (modalType === "pickup"
+                          ? pickupDate === item.date
+                          : dropoffDate === item.date) &&
+                          styles.dateTextSelected,
+                        !isValidDropoffDate && styles.disabledDateText,
+                      ]}
+                    >
+                      {item.date}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }}
             />
 
             <Text style={styles.modalSubtitle}>Select a Time</Text>
@@ -272,20 +518,38 @@ const PlaceOrderScreen = ({ route }) => {
                 <TouchableOpacity
                   style={[
                     styles.timeCard,
-                    selectedTime === item && styles.timeCardSelected,
+                    (modalType === "pickup"
+                      ? pickupTime === item
+                      : dropoffTime === item) && styles.timeCardSelected,
                   ]}
-                  onPress={() => setSelectedTime(item)}
+                  onPress={() => {
+                    if (modalType === "pickup") {
+                      setPickupTime(item);
+                    } else {
+                      setDropoffTime(item);
+                    }
+                  }}
                 >
                   <Ionicons
                     name="time-outline"
                     size={16}
-                    color={selectedTime === item ? "#FFFFFF" : "#007AFF"}
+                    color={
+                      (
+                        modalType === "pickup"
+                          ? pickupTime === item
+                          : dropoffTime === item
+                      )
+                        ? "#FFFFFF"
+                        : "#007AFF"
+                    }
                     style={styles.timeIcon}
                   />
                   <Text
                     style={[
                       styles.timeText,
-                      selectedTime === item && styles.timeTextSelected,
+                      (modalType === "pickup"
+                        ? pickupTime === item
+                        : dropoffTime === item) && styles.timeTextSelected,
                     ]}
                   >
                     {item}
@@ -296,7 +560,7 @@ const PlaceOrderScreen = ({ route }) => {
 
             <TouchableOpacity
               style={styles.doneButton}
-              onPress={() => setModalVisible(false)}
+              onPress={confirmDateTime}
             >
               <Text style={styles.doneButtonText}>Confirm</Text>
             </TouchableOpacity>
@@ -554,6 +818,31 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  disabledDateCard: {
+    backgroundColor: "#F2F2F7",
+    opacity: 0.5,
+  },
+  disabledDateText: {
+    color: "#8E8E93",
+    opacity: 0.5,
+  },
+  requiredText: {
+    color: "#FF3B30",
+    fontSize: 16,
+  },
+  helperText: {
+    fontSize: 12,
+    color: "#8E8E93",
+    marginTop: 6,
+    fontStyle: "italic",
+  },
+  modalInstructions: {
+    fontSize: 13,
+    color: "#8E8E93",
+    marginBottom: 10,
+    fontStyle: "italic",
+    textAlign: "center",
   },
 });
 

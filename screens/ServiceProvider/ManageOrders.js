@@ -22,10 +22,12 @@ import {
 import {
   Clock,
   Package,
-  CheckCircle,
+  Check,
   Truck,
   ShoppingBag,
   Loader,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react-native";
 import { auth } from "../../firebaseConfig";
 import {
@@ -36,19 +38,19 @@ import {
 
 // Order status constants
 const ORDER_STATUS = {
-  PENDING: "pending",
-  RECEIVED: "received",
-  PROCESSING: "processing",
-  COMPLETED: "completed",
-  DISPATCHED: "dispatched",
-  DELIVERED: "delivered",
-  CANCELLED: "cancelled",
+  PENDING: "Order Placed",
+  PICKED_UP: "Picked Up",
+  PROCESSING: "Order Processing",
+  DISPATCHED: "Out for Delivery",
+  DELIVERED: "Delivered",
+  CANCELLED: "Cancelled",
 };
 
 const ManageOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [expandedOrderId, setExpandedOrderId] = useState(null);
   const insets = useSafeAreaInsets();
 
   const fetchOrders = async () => {
@@ -75,7 +77,7 @@ const ManageOrders = () => {
         }))
         .sort((a, b) => {
           // Sort by createdAt in descending order
-          return new Date(b.createdAt) - new Date(a.createdAt);
+          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
         });
       setOrders(ordersList);
     } catch (error) {
@@ -98,6 +100,10 @@ const ManageOrders = () => {
     fetchOrders();
   };
 
+  const toggleOrderExpand = (orderId) => {
+    setExpandedOrderId(expandedOrderId === orderId ? null : orderId);
+  };
+
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
       const orderRef = doc(db, "orders", orderId);
@@ -113,7 +119,7 @@ const ManageOrders = () => {
         )
       );
 
-      Alert.alert("Success", `Order marked as ${newStatus} successfully`, [
+      Alert.alert("Success", `Order marked as "${newStatus}" successfully`, [
         { text: "OK" },
       ]);
     } catch (error) {
@@ -128,20 +134,18 @@ const ManageOrders = () => {
     switch (status) {
       case ORDER_STATUS.PENDING:
         return "#FFA500"; // Orange
-      case ORDER_STATUS.RECEIVED:
-        return "#007BFF"; // Blue
+      case ORDER_STATUS.PICKED_UP:
+        return "#FF9500"; // Dark Orange
       case ORDER_STATUS.PROCESSING:
-        return "#6610f2"; // Purple
-      case ORDER_STATUS.COMPLETED:
-        return "#28A745"; // Green
+        return "#5AC8FA"; // Blue
       case ORDER_STATUS.DISPATCHED:
-        return "#17a2b8"; // Teal
+        return "#007AFF"; // Blue
       case ORDER_STATUS.DELIVERED:
-        return "#20c997"; // Mint
+        return "#4CD964"; // Green
       case ORDER_STATUS.CANCELLED:
-        return "#DC3545"; // Red
+        return "#FF3B30"; // Red
       default:
-        return "#6C757D"; // Gray
+        return "#666666"; // Gray
     }
   };
 
@@ -149,167 +153,266 @@ const ManageOrders = () => {
     switch (status) {
       case ORDER_STATUS.PENDING:
         return <Clock color="#FFA500" size={20} />;
-      case ORDER_STATUS.RECEIVED:
-        return <ShoppingBag color="#007BFF" size={20} />;
+      case ORDER_STATUS.PICKED_UP:
+        return <ShoppingBag color="#FF9500" size={20} />;
       case ORDER_STATUS.PROCESSING:
-        return <Loader color="#6610f2" size={20} />;
-      case ORDER_STATUS.COMPLETED:
-        return <CheckCircle color="#28A745" size={20} />;
+        return <Loader color="#5AC8FA" size={20} />;
       case ORDER_STATUS.DISPATCHED:
-        return <Truck color="#17a2b8" size={20} />;
+        return <Truck color="#007AFF" size={20} />;
       case ORDER_STATUS.DELIVERED:
-        return <Package color="#20c997" size={20} />;
+        return <Package color="#4CD964" size={20} />;
       case ORDER_STATUS.CANCELLED:
-        return <CheckCircle color="#DC3545" size={20} />;
+        return <Check color="#FF3B30" size={20} />;
       default:
-        return <Clock color="#6C757D" size={20} />;
+        return <Clock color="#666666" size={20} />;
+    }
+  };
+
+  const getNextStatus = (currentStatus) => {
+    switch (currentStatus) {
+      case ORDER_STATUS.PENDING:
+        return ORDER_STATUS.PICKED_UP;
+      case ORDER_STATUS.PICKED_UP:
+        return ORDER_STATUS.PROCESSING;
+      case ORDER_STATUS.PROCESSING:
+        return ORDER_STATUS.DISPATCHED;
+      case ORDER_STATUS.DISPATCHED:
+        return ORDER_STATUS.DELIVERED;
+      default:
+        return null;
+    }
+  };
+
+  const getStatusButtonLabel = (currentStatus) => {
+    switch (currentStatus) {
+      case ORDER_STATUS.PENDING:
+        return "Mark as Picked Up";
+      case ORDER_STATUS.PICKED_UP:
+        return "Start Processing";
+      case ORDER_STATUS.PROCESSING:
+        return "Dispatch Order";
+      case ORDER_STATUS.DISPATCHED:
+        return "Mark as Delivered";
+      default:
+        return null;
     }
   };
 
   const renderOrderActions = (order) => {
-    // Define which buttons to show based on current status
-    const getNextStatusButtons = () => {
-      switch (order.status) {
-        case ORDER_STATUS.PENDING:
-          return [
-            {
-              label: "Order Received",
-              status: ORDER_STATUS.RECEIVED,
-              color: "#007BFF",
-            },
-            {
-              label: "Cancel Order",
-              status: ORDER_STATUS.CANCELLED,
-              color: "#DC3545",
-            },
-          ];
-        case ORDER_STATUS.RECEIVED:
-          return [
-            {
-              label: "Start Processing",
-              status: ORDER_STATUS.PROCESSING,
-              color: "#6610f2",
-            },
-          ];
-        case ORDER_STATUS.PROCESSING:
-          return [
-            {
-              label: "Mark Completed",
-              status: ORDER_STATUS.COMPLETED,
-              color: "#28A745",
-            },
-          ];
-        case ORDER_STATUS.COMPLETED:
-          return [
-            {
-              label: "Dispatch Order",
-              status: ORDER_STATUS.DISPATCHED,
-              color: "#17a2b8",
-            },
-          ];
-        case ORDER_STATUS.DISPATCHED:
-          return [
-            {
-              label: "Mark Delivered",
-              status: ORDER_STATUS.DELIVERED,
-              color: "#20c997",
-            },
-          ];
-        case ORDER_STATUS.DELIVERED:
-        case ORDER_STATUS.CANCELLED:
-          return []; // No actions for delivered or cancelled orders
-        default:
-          return [];
-      }
-    };
+    const nextStatus = getNextStatus(order.status);
+    const buttonLabel = getStatusButtonLabel(order.status);
 
-    const buttons = getNextStatusButtons();
-
-    if (buttons.length === 0) {
-      return null;
+    if (
+      !nextStatus ||
+      order.status === ORDER_STATUS.DELIVERED ||
+      order.status === ORDER_STATUS.CANCELLED
+    ) {
+      return (
+        <View style={styles.completedOrderContainer}>
+          <Text style={styles.completedOrderText}>
+            {order.status === ORDER_STATUS.DELIVERED
+              ? "Order completed successfully"
+              : "Order was cancelled"}
+          </Text>
+        </View>
+      );
     }
 
     return (
       <View style={styles.actionContainer}>
-        {buttons.map((button, index) => (
+        <TouchableOpacity
+          style={[
+            styles.actionButton,
+            { backgroundColor: getStatusColor(nextStatus) },
+          ]}
+          onPress={() => updateOrderStatus(order.id, nextStatus)}
+        >
+          {getStatusIcon(nextStatus)}
+          <Text style={styles.actionButtonText}>{buttonLabel}</Text>
+        </TouchableOpacity>
+
+        {order.status === ORDER_STATUS.PENDING && (
           <TouchableOpacity
-            key={index}
-            style={[styles.actionButton, { backgroundColor: button.color }]}
-            onPress={() => updateOrderStatus(order.id, button.status)}
-            activeOpacity={0.7}
+            style={[
+              styles.actionButton,
+              { backgroundColor: "#FF3B30", marginTop: 8 },
+            ]}
+            onPress={() => updateOrderStatus(order.id, ORDER_STATUS.CANCELLED)}
           >
-            <Text style={styles.actionButtonText}>{button.label}</Text>
+            <Text style={styles.actionButtonText}>Cancel Order</Text>
           </TouchableOpacity>
-        ))}
+        )}
       </View>
     );
   };
 
-  const renderOrderItem = ({ item }) => (
-    <View style={styles.orderItem}>
-      <View style={styles.orderHeader}>
-        <Text style={styles.orderId}>
-          Order #{item.orderId || item.id.substring(0, 8)}
-        </Text>
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: getStatusColor(item.status) },
-          ]}
-        >
-          <View style={styles.statusIconContainer}>
-            {getStatusIcon(item.status)}
-            <Text style={styles.statusText}>{item.status.toUpperCase()}</Text>
+  const renderStatusTimeline = (order) => {
+    const statuses = [
+      ORDER_STATUS.PENDING,
+      ORDER_STATUS.PICKED_UP,
+      ORDER_STATUS.PROCESSING,
+      ORDER_STATUS.DISPATCHED,
+      ORDER_STATUS.DELIVERED,
+    ];
+
+    const currentIndex = statuses.findIndex(
+      (status) => status === order.status
+    );
+
+    return (
+      <View style={styles.timelineContainer}>
+        {statuses.map((status, index) => {
+          const isCompleted = index <= currentIndex;
+          const isLast = index === statuses.length - 1;
+
+          return (
+            <View key={status} style={styles.timelineStep}>
+              <View style={styles.timelineIconSection}>
+                <View
+                  style={[
+                    styles.timelineIcon,
+                    isCompleted
+                      ? { backgroundColor: getStatusColor(status) }
+                      : styles.incompleteIcon,
+                  ]}
+                >
+                  {getStatusIcon(status)}
+                </View>
+                {!isLast && (
+                  <View
+                    style={[
+                      styles.timelineLine,
+                      isCompleted
+                        ? { backgroundColor: getStatusColor(status) }
+                        : null,
+                    ]}
+                  />
+                )}
+              </View>
+              <View style={styles.timelineTextContainer}>
+                <Text
+                  style={[
+                    styles.timelineText,
+                    isCompleted
+                      ? { color: getStatusColor(status), fontWeight: "600" }
+                      : null,
+                  ]}
+                >
+                  {status}
+                </Text>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
+  const renderOrderItem = ({ item }) => {
+    const isExpanded = expandedOrderId === item.id;
+
+    return (
+      <TouchableOpacity
+        style={styles.orderItem}
+        onPress={() => toggleOrderExpand(item.id)}
+        activeOpacity={0.7}
+      >
+        {/* Order Header - Always Visible */}
+        <View style={styles.orderHeader}>
+          <Text style={styles.orderId}>
+            Order #{item.orderId || item.id.substring(0, 8)}
+          </Text>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(item.status) },
+            ]}
+          >
+            <View style={styles.statusIconContainer}>
+              {getStatusIcon(item.status)}
+              <Text style={styles.statusText}>{item.status}</Text>
+            </View>
           </View>
         </View>
-      </View>
 
-      <View style={styles.orderDetails}>
-        <View style={styles.detailRow}>
-          <Text style={styles.label}>Customer:</Text>
-          <Text style={styles.value}>{item.customerName || "Customer"}</Text>
+        {/* Mini Summary - Always Visible */}
+        <View style={styles.orderSummary}>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Customer:</Text>
+            <Text style={styles.summaryValue}>
+              {item.customerName || "Customer"}
+            </Text>
+          </View>
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Service:</Text>
+            <Text style={styles.summaryValue}>
+              {item.serviceType || "Laundry Service"}
+            </Text>
+          </View>
+
+          <View style={styles.expandRow}>
+            {isExpanded ? (
+              <ChevronUp size={20} color="#333333" />
+            ) : (
+              <ChevronDown size={20} color="#333333" />
+            )}
+            <Text style={styles.expandText}>
+              {isExpanded ? "Hide Details" : "View Details"}
+            </Text>
+          </View>
         </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.label}>Service:</Text>
-          <Text style={styles.value}>
-            {item.serviceType || "Laundry Service"}
-          </Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.label}>Price:</Text>
-          <Text style={styles.value}>${item.price || "0.00"}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.label}>Date:</Text>
-          <Text style={styles.value}>
-            {item.createdAt
-              ? new Date(item.createdAt).toLocaleDateString()
-              : "N/A"}
-          </Text>
-        </View>
-        {item.address && (
-          <View style={styles.detailRow}>
-            <Text style={styles.label}>Address:</Text>
-            <Text style={styles.value}>{item.address}</Text>
+
+        {/* Expanded Details */}
+        {isExpanded && (
+          <View style={styles.expandedContent}>
+            <View style={styles.orderDetails}>
+              <View style={styles.detailRow}>
+                <Text style={styles.label}>Price:</Text>
+                <Text style={styles.value}>${item.price || "0.00"}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.label}>Date:</Text>
+                <Text style={styles.value}>
+                  {item.createdAt
+                    ? new Date(item.createdAt).toLocaleDateString()
+                    : "N/A"}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.label}>Time:</Text>
+                <Text style={styles.value}>{item.orderTime || "N/A"}</Text>
+              </View>
+              {item.address && (
+                <View style={styles.detailRow}>
+                  <Text style={styles.label}>Address:</Text>
+                  <Text style={styles.value}>{item.address}</Text>
+                </View>
+              )}
+              {item.notes && (
+                <View style={styles.detailRow}>
+                  <Text style={styles.label}>Notes:</Text>
+                  <Text style={styles.value}>{item.notes}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Timeline */}
+            {renderStatusTimeline(item)}
+
+            {/* Action Buttons */}
+            {renderOrderActions(item)}
           </View>
         )}
-        {item.notes && (
-          <View style={styles.detailRow}>
-            <Text style={styles.label}>Notes:</Text>
-            <Text style={styles.value}>{item.notes}</Text>
-          </View>
-        )}
-      </View>
-
-      {renderOrderActions(item)}
-    </View>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
       <SafeAreaProvider>
         <SafeAreaView style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#007BFF" />
+          <ActivityIndicator size="large" color="#333333" />
         </SafeAreaView>
       </SafeAreaProvider>
     );
@@ -325,7 +428,7 @@ const ManageOrders = () => {
           ]}
         >
           <Text style={styles.title}>Manage Orders</Text>
-          <Clock color="#666" size={24} />
+          <Clock color="#333333" size={24} />
         </View>
 
         <FlatList
@@ -337,13 +440,13 @@ const ManageOrders = () => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              colors={["#007BFF"]}
-              tintColor="#007BFF"
+              colors={["#333333"]}
+              tintColor="#333333"
             />
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Package color="#666" size={48} />
+              <Package color="#666666" size={48} />
               <Text style={styles.emptyText}>No orders found</Text>
               <Text style={styles.emptySubText}>
                 Pull down to refresh or check back later
@@ -359,52 +462,52 @@ const ManageOrders = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#f5f5f5",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingBottom: 20,
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffff",
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: "#e0e0e0",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
       },
       android: {
-        elevation: 4,
+        elevation: 2,
       },
     }),
   },
   title: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
+    fontWeight: "600",
+    color: "#333333",
   },
   listContainer: {
     padding: 16,
     flexGrow: 1,
   },
   orderItem: {
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffff",
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
       },
       android: {
-        elevation: 3,
+        elevation: 2,
       },
     }),
   },
@@ -417,7 +520,7 @@ const styles = StyleSheet.create({
   orderId: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
+    color: "#333333",
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -434,10 +537,47 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
+  orderSummary: {
+    marginBottom: 12,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    marginBottom: 6,
+  },
+  summaryLabel: {
+    width: 80,
+    fontSize: 14,
+    color: "#666666",
+    fontWeight: "500",
+  },
+  summaryValue: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#333333",
+  },
+  expandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+  },
+  expandText: {
+    fontSize: 14,
+    color: "#333333",
+    fontWeight: "500",
+    marginLeft: 4,
+  },
+  expandedContent: {
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#e0e0e0",
+    paddingTop: 12,
+  },
   orderDetails: {
     marginBottom: 16,
     backgroundColor: "#f9f9f9",
-    padding: 12,
+    padding: 14,
     borderRadius: 8,
   },
   detailRow: {
@@ -448,14 +588,54 @@ const styles = StyleSheet.create({
   label: {
     width: 80,
     fontSize: 14,
-    color: "#666",
+    color: "#666666",
     fontWeight: "500",
   },
   value: {
     flex: 1,
     fontSize: 14,
     fontWeight: "500",
-    color: "#333",
+    color: "#333333",
+  },
+  timelineContainer: {
+    marginBottom: 16,
+    paddingVertical: 8,
+  },
+  timelineStep: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  timelineIconSection: {
+    alignItems: "center",
+    width: 40,
+  },
+  timelineIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#333333",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  incompleteIcon: {
+    backgroundColor: "#e0e0e0",
+  },
+  timelineLine: {
+    width: 2,
+    height: 30,
+    backgroundColor: "#e0e0e0",
+  },
+  timelineTextContainer: {
+    flex: 1,
+    paddingLeft: 12,
+    justifyContent: "center",
+    height: 36,
+    marginBottom: 6,
+  },
+  timelineText: {
+    fontSize: 14,
+    color: "#666666",
   },
   actionContainer: {
     flexDirection: "column",
@@ -465,20 +645,32 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    padding: 12,
+    padding: 14,
     borderRadius: 8,
     gap: 8,
+    backgroundColor: "#333333",
   },
   actionButtonText: {
-    color: "#fff",
+    color: "#ffffff",
     fontSize: 14,
     fontWeight: "600",
+  },
+  completedOrderContainer: {
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "#f9f9f9",
+    alignItems: "center",
+  },
+  completedOrderText: {
+    fontSize: 14,
+    color: "#666666",
+    fontStyle: "italic",
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#f5f5f5",
   },
   emptyContainer: {
     alignItems: "center",
@@ -489,13 +681,13 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 16,
     fontSize: 18,
-    color: "#666",
+    color: "#666666",
     fontWeight: "600",
   },
   emptySubText: {
     marginTop: 8,
     fontSize: 14,
-    color: "#999",
+    color: "#999999",
     textAlign: "center",
   },
 });

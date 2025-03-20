@@ -1,12 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
   TextInput,
-  Button,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Animated,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  StatusBar,
 } from "react-native";
 import {
   signInWithEmailAndPassword,
@@ -16,12 +20,36 @@ import {
 import { doc, setDoc } from "firebase/firestore";
 import { auth, firestore } from "../../firebaseConfig";
 import { useNavigation } from "@react-navigation/core";
+import { Ionicons } from "@expo/vector-icons";
+
+const { width, height } = Dimensions.get("window");
 
 const AuthScreen = () => {
   const [isLogin, setIsLogin] = useState(true);
   const navigation = useNavigation();
+  const tabIndicatorPosition = useRef(new Animated.Value(0)).current;
 
-  const handleToggle = () => setIsLogin(!isLogin);
+  const handleToggle = () => {
+    setIsLogin(!isLogin);
+
+    // Animate tab indicator
+    Animated.spring(tabIndicatorPosition, {
+      toValue: isLogin ? 1 : 0,
+      friction: 8,
+      tension: 50,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  // Update the tab indicator on initial render
+  useEffect(() => {
+    Animated.spring(tabIndicatorPosition, {
+      toValue: isLogin ? 0 : 1,
+      friction: 8,
+      tension: 50,
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   const handleLogin = async (email, password) => {
     try {
@@ -33,7 +61,7 @@ const AuthScreen = () => {
     }
   };
 
-  const handleRegister = async ({ name, email, password }) => {
+  const handleRegister = async (name, email, password) => {
     try {
       const res = await createUserWithEmailAndPassword(auth, email, password);
       const userId = res.user.uid;
@@ -44,53 +72,131 @@ const AuthScreen = () => {
         email,
         rating: 0,
         createdAt: new Date(),
-      
       });
 
       console.log("Registered successfully:", name, email);
       alert("Registration successful!");
+      navigation.navigate("Main");
     } catch (error) {
       alert(`Sign Up Failed: ${error.message}`);
     }
   };
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* Tab Buttons */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          onPress={handleToggle}
-          style={isLogin ? styles.activeTab : styles.inactiveTab}
-        >
-          <Text style={styles.tabText}>Login</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={handleToggle}
-          style={!isLogin ? styles.activeTab : styles.inactiveTab}
-        >
-          <Text style={styles.tabText}>Register</Text>
-        </TouchableOpacity>
-      </View>
+  // Calculate tab indicator position
+  const translateX = tabIndicatorPosition.interpolate({
+    inputRange: [0, 1.19],
+    outputRange: [4, width * 0.5 + 4],
+  });
 
-      {/* Render Forms */}
-      {isLogin ? (
-        <LoginForm onSubmit={handleLogin} />
-      ) : (
-        <RegisterForm onSubmit={handleRegister} />
-      )}
-    </ScrollView>
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+    >
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <View style={styles.gradient}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.logoContainer}>
+            <Text style={styles.logo}>Laundry Express</Text>
+            <Text style={styles.logoTagline}>Customer Portal</Text>
+          </View>
+
+          <View style={styles.tabContainerWrapper}>
+            <View style={styles.tabContainer}>
+              <Animated.View
+                style={[styles.tabIndicator, { transform: [{ translateX }] }]}
+              />
+              <TouchableOpacity
+                onPress={() => !isLogin && handleToggle()}
+                style={styles.tab}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.tabText, isLogin && styles.activeTabText]}>
+                  Login
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => isLogin && handleToggle()}
+                style={styles.tab}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[styles.tabText, !isLogin && styles.activeTabText]}
+                >
+                  Register
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {isLogin ? (
+            <LoginForm onSubmit={handleLogin} />
+          ) : (
+            <RegisterForm onSubmit={handleRegister} />
+          )}
+        </ScrollView>
+      </View>
+    </KeyboardAvoidingView>
   );
 };
 
-// Login Form Component
+const InputField = ({ label, icon, isPassword, ...props }) => {
+  const [secureTextEntry, setSecureTextEntry] = useState(isPassword);
+
+  const toggleSecureEntry = () => {
+    setSecureTextEntry(!secureTextEntry);
+  };
+
+  return (
+    <View style={styles.inputContainer}>
+      <View style={styles.inputWrapper}>
+        <View style={styles.inputRow}>
+          <Ionicons
+            name={icon}
+            size={20}
+            color="#666"
+            style={styles.inputIcon}
+          />
+          <TextInput
+            style={styles.inputWithIcon}
+            placeholderTextColor="#999999"
+            secureTextEntry={secureTextEntry}
+            {...props}
+          />
+          {isPassword && (
+            <TouchableOpacity
+              onPress={toggleSecureEntry}
+              style={styles.eyeIcon}
+            >
+              <Ionicons
+                name={secureTextEntry ? "eye-outline" : "eye-off-outline"}
+                size={20}
+                color="#666"
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+};
+
 const LoginForm = ({ onSubmit }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const handleForgotPassword = async () => {
+    if (!email) {
+      alert("Please enter your email address first");
+      return;
+    }
     try {
       await sendPasswordResetEmail(auth, email);
-      alert("Password reset email sent!");
+      alert("Password reset email sent! Please check your inbox.");
     } catch (error) {
       alert(`Error: ${error.message}`);
     }
@@ -98,36 +204,43 @@ const LoginForm = ({ onSubmit }) => {
 
   return (
     <View style={styles.formContainer}>
-      <Text style={styles.label}>Email</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Your email"
+      <InputField
+        label="Email"
+        placeholder="Enter your email"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
+        autoCapitalize="none"
+        icon="mail-outline"
       />
-      <Text style={styles.label}>Password</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
+      <InputField
+        label="Password"
+        placeholder="Enter your password"
         value={password}
         onChangeText={setPassword}
-        secureTextEntry
+        isPassword={true}
+        icon="lock-closed-outline"
       />
       <TouchableOpacity
         style={styles.button}
         onPress={() => onSubmit(email, password)}
+        activeOpacity={0.9}
       >
-        <Text style={styles.buttonText}>Login</Text>
+        <View style={styles.buttonGradient}>
+          <Text style={styles.buttonText}>Sign In</Text>
+        </View>
       </TouchableOpacity>
-      <TouchableOpacity onPress={handleForgotPassword}>
+      <TouchableOpacity
+        onPress={handleForgotPassword}
+        style={styles.forgotPasswordContainer}
+        activeOpacity={0.7}
+      >
         <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
       </TouchableOpacity>
     </View>
   );
 };
 
-// Register Form Component
 const RegisterForm = ({ onSubmit }) => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -139,44 +252,52 @@ const RegisterForm = ({ onSubmit }) => {
       alert("Passwords do not match!");
       return;
     }
-    onSubmit({ name, email, password });
+    onSubmit(name, email, password);
   };
 
   return (
     <View style={styles.formContainer}>
-      <Text style={styles.label}>Name</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Your name"
+      <InputField
+        label="Name"
+        placeholder="Enter your full name"
         value={name}
         onChangeText={setName}
+        autoCapitalize="words"
+        icon="person-outline"
       />
-      <Text style={styles.label}>Email</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Your email"
+      <InputField
+        label="Email"
+        placeholder="Enter your email"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
+        autoCapitalize="none"
+        icon="mail-outline"
       />
-      <Text style={styles.label}>Password</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
+      <InputField
+        label="Password"
+        placeholder="Create a password"
         value={password}
         onChangeText={setPassword}
-        secureTextEntry
+        isPassword={true}
+        icon="lock-closed-outline"
       />
-      <Text style={styles.label}>Confirm Password</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Confirm Password"
+      <InputField
+        label="Confirm Password"
+        placeholder="Confirm your password"
         value={confirmPassword}
         onChangeText={setConfirmPassword}
-        secureTextEntry
+        isPassword={true}
+        icon="lock-closed-outline"
       />
-      <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-        <Text style={styles.buttonText}>Register</Text>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={handleSubmit}
+        activeOpacity={0.9}
+      >
+        <View style={styles.buttonGradient}>
+          <Text style={styles.buttonText}>Create Account</Text>
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -185,66 +306,151 @@ const RegisterForm = ({ onSubmit }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: 20,
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#ffffff",
+  },
+  gradient: {
+    flex: 1,
+    backgroundColor: "#f5f5f5",
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === "ios" ? 60 : 40,
+    paddingBottom: 40,
+  },
+  logoContainer: {
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  logo: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#1a1a1a",
+  },
+  logoTagline: {
+    fontSize: 14,
+    color: "#666666",
+    marginTop: 4,
+  },
+  tabContainerWrapper: {
+    alignItems: "center",
+    marginBottom: 10,
   },
   tabContainer: {
     flexDirection: "row",
-    marginBottom: 20,
-    borderBottomWidth: 2,
-    borderColor: "#ddd",
+    marginBottom: 16,
+    backgroundColor: "#eaeaea",
+    borderRadius: 12,
+    padding: 4,
+    width: "100%",
+    position: "relative",
+    height: 52,
   },
-  activeTab: {
-    flex: 1,
-    padding: 10,
-    backgroundColor: "white",
+  tabIndicator: {
+    position: "absolute",
+    height: 44,
+    width: "50%",
+    backgroundColor: "#ffffff",
     borderRadius: 8,
-    alignItems: "center",
+    left: 4,
+    top: 4,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  inactiveTab: {
+  tab: {
     flex: 1,
-    padding: 10,
-    backgroundColor: "#e0e0e0",
-    borderRadius: 8,
+    justifyContent: "center",
     alignItems: "center",
+    borderRadius: 8,
+    zIndex: 1,
+    height: 44,
   },
   tabText: {
-    color: "black",
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#666666",
+  },
+  activeTabText: {
+    color: "#1a1a1a",
   },
   formContainer: {
+    marginTop: 0,
+  },
+  inputContainer: {
     marginBottom: 20,
   },
   label: {
-    fontSize: 16,
-    marginBottom: 5,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333333",
+    marginBottom: 8,
   },
-  input: {
-    height: 45,
-    borderColor: "#ccc",
+  inputWrapper: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f9f9f9",
+    borderRadius: 12,
     borderWidth: 1,
-    borderRadius: 8,
-    marginBottom: 15,
-    paddingHorizontal: 10,
+    borderColor: "#e0e0e0",
+    height: 52,
+  },
+  inputIcon: {
+    paddingLeft: 16,
+  },
+  inputWithIcon: {
+    flex: 1,
+    height: 52,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    color: "#333333",
+  },
+  eyeIcon: {
+    padding: 10,
   },
   button: {
-    backgroundColor: "#007BFF",
-    borderRadius: 8,
-    paddingVertical: 15,
+    height: 52,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginTop: 20,
+    shadowColor: "#000000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  buttonGradient: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    width: "100%",
+    backgroundColor: "#333333",
   },
   buttonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  forgotPasswordContainer: {
+    alignItems: "center",
+    marginTop: 20,
+    paddingVertical: 8,
   },
   forgotPasswordText: {
-    color: "#007BFF",
-    marginTop: 10,
-    textAlign: "center",
+    color: "#1a1a1a",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
 
