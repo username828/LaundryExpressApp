@@ -579,6 +579,8 @@ const TrackOrderScreen = ({ route }) => {
         title="Track Order"
         leftIcon="arrow-back"
         onLeftPress={() => navigation.goBack()}
+        rightIcon="chatbubble-outline"
+        onRightPress={handleChatWithProvider}
       />
 
       <ScrollView
