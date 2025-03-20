@@ -1,7 +1,13 @@
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
 import React, { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
-import Icon from "react-native-vector-icons/MaterialCommunityIcons"; 
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../firebaseConfig"; // Import Firestore instance
 
@@ -13,7 +19,10 @@ const Orders = ({ order }) => {
   useEffect(() => {
     const fetchComplaintStatus = async () => {
       try {
-        const q = query(collection(db, "complaints"), where("orderId", "==", order.orderId));
+        const q = query(
+          collection(db, "complaints"),
+          where("orderId", "==", order.orderId)
+        );
         const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
@@ -112,7 +121,7 @@ const Orders = ({ order }) => {
 
       {/* Complaint Button */}
       <TouchableOpacity
-        style={complaintButtonStyle}
+        style={styles.complaintButton}
         onPress={() =>
           navigation.navigate("FileComplaint", {
             orderId: order.orderId,
@@ -125,7 +134,12 @@ const Orders = ({ order }) => {
           <ActivityIndicator size="small" color="#fff" />
         ) : (
           <>
-            <Icon name={complaintIcon} size={20} color="#fff" style={styles.buttonIcon} />
+            <Icon
+              name={complaintIcon}
+              size={20}
+              color="#fff"
+              style={styles.buttonIcon}
+            />
             <Text style={styles.buttonText}>{complaintButtonText}</Text>
           </>
         )}

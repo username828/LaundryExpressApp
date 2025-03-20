@@ -231,6 +231,22 @@ const OrderScreen = () => {
               onPress={() => handleReviewOrder(order)}
             />
           )}
+
+          {order.status === ORDER_STATUS.DELIVERED && (
+            <Button
+              title="File Complaint"
+              icon="alert-circle-outline"
+              size="small"
+              variant="error"
+              style={{ flex: 1 }}
+              onPress={() =>
+                navigation.navigate("FileComplaint", {
+                  orderId: order.id,
+                  providerId: order.serviceProviderId,
+                })
+              }
+            />
+          )}
         </View>
       </Card>
     );
