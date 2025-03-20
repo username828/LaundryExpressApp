@@ -29,6 +29,7 @@ import {
   Loader,
   ChevronDown,
   ChevronUp,
+  MessageCircle,
 } from "lucide-react-native";
 import { auth } from "../../firebaseConfig";
 import {
@@ -36,6 +37,7 @@ import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
 
 // Order status constants
 const ORDER_STATUS = {
@@ -53,6 +55,7 @@ const ManageOrders = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
 
   const fetchOrders = async () => {
     try {
@@ -204,6 +207,16 @@ const ManageOrders = () => {
     }
   };
 
+  const handleChatWithCustomer = (order) => {
+    navigation.navigate("SPChat", {
+      orderId: order.id,
+      serviceProviderId: order.serviceProviderId,
+      serviceProviderName: auth.currentUser.displayName || "Service Provider",
+      customerId: order.customerId,
+      customerName: order.customerName || "Customer",
+    });
+  };
+
   const renderOrderActions = (order) => {
     const nextStatus = getNextStatus(order.status);
     const buttonLabel = getStatusButtonLabel(order.status);
@@ -214,12 +227,23 @@ const ManageOrders = () => {
       order.status === ORDER_STATUS.CANCELLED
     ) {
       return (
-        <View style={styles.completedOrderContainer}>
-          <Text style={styles.completedOrderText}>
-            {order.status === ORDER_STATUS.DELIVERED
-              ? "Order completed successfully"
-              : "Order was cancelled"}
-          </Text>
+        <View style={styles.actionsContainer}>
+          <View style={styles.completedOrderContainer}>
+            <Text style={styles.completedOrderText}>
+              {order.status === ORDER_STATUS.DELIVERED
+                ? "Order completed successfully"
+                : "Order was cancelled"}
+            </Text>
+          </View>
+
+          {/* Add Chat Button */}
+          <TouchableOpacity
+            style={styles.chatButton}
+            onPress={() => handleChatWithCustomer(order)}
+          >
+            <MessageCircle size={16} color="#FFFFFF" />
+            <Text style={styles.chatButtonText}>Chat with Customer</Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -244,6 +268,15 @@ const ManageOrders = () => {
             <Text style={styles.actionButtonText}>Cancel Order</Text>
           </TouchableOpacity>
         )}
+
+        {/* Add Chat Button */}
+        <TouchableOpacity
+          style={styles.chatButton}
+          onPress={() => handleChatWithCustomer(order)}
+        >
+          <MessageCircle size={16} color="#FFFFFF" />
+          <Text style={styles.chatButtonText}>Chat with Customer</Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -824,6 +857,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#999999",
     textAlign: "center",
+  },
+  actionsContainer: {
+    marginTop: 12,
+  },
+  chatButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#4A6FA5",
+    borderRadius: 8,
+    padding: 14,
+    marginTop: 12,
+  },
+  chatButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 8,
   },
 });
 

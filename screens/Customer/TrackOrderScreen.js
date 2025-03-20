@@ -304,6 +304,16 @@ const TrackOrderScreen = ({ route }) => {
     ]);
   };
 
+  const handleChatWithProvider = () => {
+    navigation.navigate("Chat", {
+      orderId,
+      serviceProviderId: orderData.serviceProviderId,
+      serviceProviderName: providerData?.name || "Service Provider",
+      customerId: orderData.customerId,
+      customerName: orderData.customerName || "Customer",
+    });
+  };
+
   const renderOrderDetails = () => {
     if (!orderData) return null;
 
@@ -484,6 +494,14 @@ const TrackOrderScreen = ({ route }) => {
             </Text>
           </View>
         </View>
+
+        <TouchableOpacity
+          style={[styles.chatButton, { backgroundColor: theme.colors.primary }]}
+          onPress={handleChatWithProvider}
+        >
+          <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
+          <Text style={styles.chatButtonText}>Chat with Service Provider</Text>
+        </TouchableOpacity>
       </Card>
     );
   };
@@ -973,6 +991,22 @@ const styles = StyleSheet.create({
   providerCard: {
     marginHorizontal: 16,
     marginBottom: 16,
+  },
+  chatButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#4CD964",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 12,
+  },
+  chatButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 8,
   },
 });
 

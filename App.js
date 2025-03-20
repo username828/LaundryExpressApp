@@ -23,6 +23,7 @@ import TrackOrderScreen from "./screens/Customer/TrackOrderScreen";
 import CustomerFeedbackScreen from "./screens/Customer/RatingScreen";
 import MapScreen from "./screens/Customer/MapScreen";
 import FileComplaintScreen from "./screens/Customer/FileComplaint";
+import Chat from "./screens/Customer/Chat";
 
 //Other Screens
 import OnBoardingScreen from "./screens/OnBoardingScreen";
@@ -38,6 +39,7 @@ import OrderDetailsScreen from "./screens/ServiceProvider/OrderDetailsScreen";
 import SPMapScreen from "./screens/ServiceProvider/SPMapScreen";
 import ServiceProviderComplaints from "./screens/ServiceProvider/ManageComplaints";
 import SPAnalytics from "./screens/ServiceProvider/SPAnalytics";
+import SPChat from "./screens/ServiceProvider/Chat";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -148,6 +150,12 @@ export default function App() {
                   options={{ headerShown: false }}
                 />
 
+                <Stack.Screen
+                  name="Chat"
+                  component={Chat}
+                  options={{ headerShown: false }}
+                />
+
                 {/* Service Provider Screens */}
                 <Stack.Screen
                   name="ServiceProviderAuth"
@@ -202,6 +210,12 @@ export default function App() {
                 <Stack.Screen
                   name="ManageComplaints"
                   component={ServiceProviderComplaints}
+                  options={{ headerShown: false }}
+                />
+
+                <Stack.Screen
+                  name="SPChat"
+                  component={SPChat}
                   options={{ headerShown: false }}
                 />
               </Stack.Navigator>
