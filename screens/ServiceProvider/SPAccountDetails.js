@@ -103,6 +103,7 @@ const SPAccountDetails = () => {
 
   const pickImage = async () => {
     try {
+      setImageUploading(true);
       // Request permission
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -117,7 +118,7 @@ const SPAccountDetails = () => {
 
       // Launch image picker with updated API
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaType.Images,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.5,
@@ -127,8 +128,6 @@ const SPAccountDetails = () => {
         const data = await uploadImageToCloudinary(result.assets[0].uri);
         setProfilePicture(data);
         Alert.alert("Success", "Image uploaded successfully");
-      } else {
-        Alert.alert("Error", "Failed to upload image");
       }
     } catch (error) {
       console.error("Error picking image:", error);
