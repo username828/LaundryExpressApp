@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Platform,
   RefreshControl,
+  StatusBar,
 } from "react-native";
 import { firestore as db } from "../../firebaseConfig";
 import {
@@ -30,6 +31,7 @@ import {
   ChevronDown,
   ChevronUp,
   MessageCircle,
+  Calendar,
 } from "lucide-react-native";
 import { auth } from "../../firebaseConfig";
 import {
@@ -38,6 +40,8 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
+import { useTheme } from "../../theme/ThemeContext";
 
 // Order status constants
 const ORDER_STATUS = {
@@ -56,6 +60,7 @@ const ManageOrders = () => {
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const theme = useTheme();
 
   const fetchOrders = async () => {
     try {
@@ -142,19 +147,19 @@ const ManageOrders = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case ORDER_STATUS.PENDING:
-        return "#FFA500"; // Orange
+        return theme.colors.warning; // Orange
       case ORDER_STATUS.PICKED_UP:
-        return "#FF9500"; // Dark Orange
+        return theme.colors.warning; // Dark Orange
       case ORDER_STATUS.PROCESSING:
-        return "#5AC8FA"; // Blue
+        return theme.colors.info; // Blue
       case ORDER_STATUS.DISPATCHED:
-        return "#007AFF"; // Blue
+        return theme.colors.primary; // Blue
       case ORDER_STATUS.DELIVERED:
-        return "#4CD964"; // Green
+        return theme.colors.success; // Green
       case ORDER_STATUS.CANCELLED:
-        return "#FF3B30"; // Red
+        return theme.colors.error; // Red
       default:
-        return "#666666"; // Gray
+        return theme.colors.textLight; // Gray
     }
   };
 
@@ -238,7 +243,10 @@ const ManageOrders = () => {
 
           {/* Add Chat Button */}
           <TouchableOpacity
-            style={styles.chatButton}
+            style={[
+              styles.chatButton,
+              { backgroundColor: theme.colors.primary },
+            ]}
             onPress={() => handleChatWithCustomer(order)}
           >
             <MessageCircle size={16} color="#FFFFFF" />
@@ -257,21 +265,45 @@ const ManageOrders = () => {
           ]}
           onPress={() => updateOrderStatus(order.id, nextStatus)}
         >
+          {nextStatus === ORDER_STATUS.PICKED_UP && (
+            <ShoppingBag
+              size={16}
+              color="#FFFFFF"
+              style={styles.actionButtonIcon}
+            />
+          )}
+          {nextStatus === ORDER_STATUS.PROCESSING && (
+            <Loader size={16} color="#FFFFFF" style={styles.actionButtonIcon} />
+          )}
+          {nextStatus === ORDER_STATUS.DISPATCHED && (
+            <Truck size={16} color="#FFFFFF" style={styles.actionButtonIcon} />
+          )}
+          {nextStatus === ORDER_STATUS.DELIVERED && (
+            <Package
+              size={16}
+              color="#FFFFFF"
+              style={styles.actionButtonIcon}
+            />
+          )}
           <Text style={styles.actionButtonText}>{buttonLabel}</Text>
         </TouchableOpacity>
 
         {order.status === ORDER_STATUS.PENDING && (
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: "#F56565" }]}
+            style={[
+              styles.actionButton,
+              { backgroundColor: theme.colors.error },
+            ]}
             onPress={() => updateOrderStatus(order.id, ORDER_STATUS.CANCELLED)}
           >
+            <Check size={16} color="#FFFFFF" style={styles.actionButtonIcon} />
             <Text style={styles.actionButtonText}>Cancel Order</Text>
           </TouchableOpacity>
         )}
 
         {/* Add Chat Button */}
         <TouchableOpacity
-          style={styles.chatButton}
+          style={[styles.chatButton, { backgroundColor: theme.colors.primary }]}
           onPress={() => handleChatWithCustomer(order)}
         >
           <MessageCircle size={16} color="#FFFFFF" />
@@ -369,6 +401,7 @@ const ManageOrders = () => {
               { backgroundColor: getStatusColor(item.status) },
             ]}
           >
+            {getStatusIcon(item.status)}
             <Text style={styles.statusText}>{item.status}</Text>
           </View>
         </View>
@@ -391,15 +424,28 @@ const ManageOrders = () => {
             </Text>
           </View>
 
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Date:</Text>
+            <Text style={styles.summaryValue}>
+              {item.createdAt
+                ? new Date(item.createdAt).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })
+                : "N/A"}
+            </Text>
+          </View>
+
           <View style={styles.expandRow}>
-            {isExpanded ? (
-              <ChevronUp size={20} color="#4A6FA5" />
-            ) : (
-              <ChevronDown size={20} color="#4A6FA5" />
-            )}
             <Text style={styles.expandText}>
               {isExpanded ? "Hide Details" : "View Details"}
             </Text>
+            {isExpanded ? (
+              <ChevronUp size={18} color={theme.colors.primary} />
+            ) : (
+              <ChevronDown size={18} color={theme.colors.primary} />
+            )}
           </View>
         </View>
 
@@ -431,7 +477,10 @@ const ManageOrders = () => {
             {/* Schedule */}
             {(item.orderPickup || item.orderDropoff) && (
               <View style={styles.servicesList}>
-                <Text style={styles.servicesTitle}>Schedule</Text>
+                <View style={styles.sectionTitleRow}>
+                  <Calendar size={16} color={theme.colors.text} />
+                  <Text style={styles.servicesTitle}>Schedule</Text>
+                </View>
                 <View style={styles.scheduleContainer}>
                   {item.orderPickup && (
                     <View style={styles.scheduleItem}>
@@ -462,7 +511,10 @@ const ManageOrders = () => {
 
             {/* Services */}
             <View style={styles.servicesList}>
-              <Text style={styles.servicesTitle}>Services</Text>
+              <View style={styles.sectionTitleRow}>
+                <ShoppingBag size={16} color={theme.colors.text} />
+                <Text style={styles.servicesTitle}>Services</Text>
+              </View>
 
               {hasMultipleServices ? (
                 <>
@@ -497,7 +549,9 @@ const ManageOrders = () => {
               {/* Total */}
               <View style={styles.totalContainer}>
                 <Text style={styles.totalLabel}>Total Amount</Text>
-                <Text style={styles.totalValue}>
+                <Text
+                  style={[styles.totalValue, { color: theme.colors.primary }]}
+                >
                   $
                   {hasMultipleServices
                     ? item.totalPrice.toFixed(2)
@@ -509,6 +563,10 @@ const ManageOrders = () => {
             </View>
 
             {/* Timeline */}
+            <View style={styles.sectionTitleRow}>
+              <Clock size={16} color={theme.colors.text} />
+              <Text style={styles.servicesTitle}>Order Status</Text>
+            </View>
             {renderStatusTimeline(item)}
 
             {/* Action Buttons */}
@@ -523,7 +581,9 @@ const ManageOrders = () => {
     return (
       <SafeAreaProvider>
         <SafeAreaView style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#333333" />
+          <StatusBar barStyle="light-content" />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingText}>Loading orders...</Text>
         </SafeAreaView>
       </SafeAreaProvider>
     );
@@ -532,32 +592,43 @@ const ManageOrders = () => {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container} edges={["top"]}>
-        <View
-          style={[
-            styles.header,
-            { paddingTop: insets.top > 0 ? insets.top : 20 },
-          ]}
+        <StatusBar barStyle="light-content" />
+        <LinearGradient
+          colors={[theme.colors.primary, theme.colors.primaryDark]}
+          style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}
         >
-          <Text style={styles.title}>Manage Orders</Text>
-          <Clock color="#333333" size={24} />
-        </View>
+          <View style={styles.headerContent}>
+            <Text style={styles.title}>Manage Orders</Text>
+            <Text style={styles.subtitle}>
+              Track and update customer orders
+            </Text>
+          </View>
+        </LinearGradient>
 
         <FlatList
           data={orders}
           keyExtractor={(item) => item.id}
           renderItem={renderOrderItem}
           contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              colors={["#333333"]}
-              tintColor="#333333"
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.primary}
             />
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Package color="#666666" size={48} />
+              <View
+                style={[
+                  styles.emptyIconContainer,
+                  { backgroundColor: theme.colors.primary + "15" },
+                ]}
+              >
+                <Package color={theme.colors.primary} size={48} />
+              </View>
               <Text style={styles.emptyText}>No orders found</Text>
               <Text style={styles.emptySubText}>
                 Pull down to refresh or check back later
@@ -573,31 +644,25 @@ const ManageOrders = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: "#FFFFFF",
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: "#ffffff",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+  },
+  headerContent: {
+    alignItems: "center",
   },
   title: {
-    fontSize: 24,
-    fontWeight: "600",
-    color: "#333333",
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.8)",
+    marginTop: 4,
   },
   listContainer: {
     padding: 16,
@@ -605,20 +670,16 @@ const styles = StyleSheet.create({
   },
   orderItem: {
     backgroundColor: "#ffffff",
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
   },
   orderHeader: {
     flexDirection: "row",
@@ -635,11 +696,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
+    flexDirection: "row",
+    alignItems: "center",
   },
   statusText: {
     color: "#fff",
     fontSize: 12,
     fontWeight: "600",
+    marginLeft: 4,
   },
   orderSummary: {
     marginBottom: 12,
@@ -662,13 +726,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 8,
+    marginTop: 12,
   },
   expandText: {
     fontSize: 14,
-    color: "#4A6FA5",
     fontWeight: "500",
-    marginLeft: 4,
+    marginRight: 4,
   },
   expandedContent: {
     marginTop: 12,
@@ -679,7 +742,7 @@ const styles = StyleSheet.create({
   orderDetails: {
     backgroundColor: "#F9F9FB",
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 16,
   },
   detailRow: {
@@ -696,19 +759,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#333333",
   },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
   servicesTitle: {
     fontSize: 16,
     fontWeight: "600",
     color: "#333333",
-    marginBottom: 12,
-    marginTop: 6,
+    marginLeft: 8,
   },
   scheduleContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     backgroundColor: "#F9F9FB",
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 16,
   },
   scheduleItem: {
@@ -732,8 +799,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     backgroundColor: "#F9F9FB",
-    padding: 12,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 12,
     marginBottom: 8,
   },
   serviceRow: {
@@ -769,9 +836,8 @@ const styles = StyleSheet.create({
     color: "#333333",
   },
   totalValue: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#333333",
+    fontSize: 16,
+    fontWeight: "700",
   },
   timelineContainer: {
     marginBottom: 20,
@@ -779,7 +845,7 @@ const styles = StyleSheet.create({
   timelineStep: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   timelineIconSection: {
     alignItems: "center",
@@ -794,7 +860,7 @@ const styles = StyleSheet.create({
   },
   timelineLine: {
     width: 2,
-    height: 24,
+    height: 26,
     marginLeft: 14,
   },
   timelineTextContainer: {
@@ -815,17 +881,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 14,
-    borderRadius: 8,
+    borderRadius: 12,
     gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  actionButtonIcon: {
+    marginRight: 6,
   },
   actionButtonText: {
     color: "#FFFFFF",
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
   },
   completedOrderContainer: {
-    padding: 12,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 12,
     backgroundColor: "#F9F9F9",
     alignItems: "center",
   },
@@ -838,18 +912,32 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#FFFFFF",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#666666",
   },
   emptyContainer: {
     alignItems: "center",
     justifyContent: "center",
     padding: 32,
+    paddingTop: 60,
     flex: 1,
+  },
+  emptyIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
   },
   emptyText: {
     marginTop: 16,
     fontSize: 18,
-    color: "#666666",
+    color: "#333333",
     fontWeight: "600",
   },
   emptySubText: {
@@ -857,6 +945,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#999999",
     textAlign: "center",
+    maxWidth: "80%",
   },
   actionsContainer: {
     marginTop: 12,
@@ -865,14 +954,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#4A6FA5",
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 14,
     marginTop: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   chatButtonText: {
     color: "#FFFFFF",
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
     marginLeft: 8,
   },

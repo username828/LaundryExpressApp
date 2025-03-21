@@ -6,6 +6,7 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -18,12 +19,17 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { MaterialIcons, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../../theme/ThemeContext";
+import Header from "../../components/Header";
+import Card from "../../components/Card";
+import Button from "../../components/Button";
 
 const ProfileScreen = () => {
   const auth = getAuth();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
 
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -64,41 +70,43 @@ const ProfileScreen = () => {
     fetchProfileData();
   }, [user]);
 
-
-
   useFocusEffect(
     React.useCallback(() => {
       const fetchFavoriteProviders = async () => {
         try {
           const storedFavorites = await AsyncStorage.getItem("favorites");
-  
-          const favoriteIds = storedFavorites ? JSON.parse(storedFavorites) : [];
-  
+
+          const favoriteIds = storedFavorites
+            ? JSON.parse(storedFavorites)
+            : [];
+
           if (favoriteIds.length === 0) {
             setFavoriteProviders([]); // No favorites exist
             return;
           }
-  
-          // Retrieve stored service providers
-          const storedProviders = await AsyncStorage.getItem("serviceProviders");
 
-          const allProviders = storedProviders ? JSON.parse(storedProviders) : [];
-  
+          // Retrieve stored service providers
+          const storedProviders = await AsyncStorage.getItem(
+            "serviceProviders"
+          );
+
+          const allProviders = storedProviders
+            ? JSON.parse(storedProviders)
+            : [];
+
           const favoriteProviders = allProviders.filter((provider) =>
             favoriteIds.includes(provider.serviceProviderId)
           );
-  
+
           setFavoriteProviders(favoriteProviders);
         } catch (error) {
           console.error("Error fetching favorite providers:", error);
         }
       };
-  
+
       fetchFavoriteProviders();
-    }, []) // Empty dependency array ensures it runs every time screen is focused
+    }, [])
   );
-  
-  
 
   const handleLogout = async () => {
     try {
@@ -111,114 +119,187 @@ const ProfileScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer} edges={["top"]}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading profile...</Text>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+      >
+        <Header title="My Profile" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={[styles.loadingText, { color: theme.colors.textLight }]}>
+            Loading profile...
+          </Text>
+        </View>
       </SafeAreaView>
     );
   }
 
   if (!profile) {
     return (
-      <SafeAreaView style={styles.loadingContainer} edges={["top"]}>
-        <MaterialIcons name="error-outline" size={48} color="#FF3B30" />
-        <Text style={styles.errorText}>No profile found.</Text>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+      >
+        <Header title="My Profile" />
+        <View style={styles.errorContainer}>
+          <Ionicons
+            name="alert-circle-outline"
+            size={60}
+            color={theme.colors.error}
+          />
+          <Text style={[styles.errorText, { color: theme.colors.text }]}>
+            No profile found
+          </Text>
+          <Text
+            style={[styles.errorSubText, { color: theme.colors.textLight }]}
+          >
+            We couldn't find your profile information
+          </Text>
+          <Button
+            title="Go to Home"
+            icon="home-outline"
+            onPress={() => navigation.navigate("Home")}
+            style={{ marginTop: 20 }}
+          />
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={[styles.header, { marginTop: insets.top > 0 ? 0 : 20 }]}>
-        <Text style={styles.headerTitle}>My Profile</Text>
-      </View>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
+      <Header title="My Profile" />
 
-      <FlatList
-        ListHeaderComponent={
-          <>
-            <View style={styles.profileContainer}>
-              <View style={styles.avatarContainer}>
-                <Image
-                  source={{
-                    uri: profile.avatar || "https://static.vecteezy.com/system/resources/thumbnails/020/765/399/small_2x/default-profile-account-unknown-icon-black-silhouette-free-vector.jpg",
-                  }}
-                  style={styles.profileImage}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Card style={styles.profileCard}>
+          <View style={styles.avatarContainer}>
+            <Image
+              source={{
+                uri:
+                  profile.avatar ||
+                  "https://static.vecteezy.com/system/resources/thumbnails/020/765/399/small_2x/default-profile-account-unknown-icon-black-silhouette-free-vector.jpg",
+              }}
+              style={styles.profileImage}
+            />
+          </View>
+          <Text style={[styles.name, { color: theme.colors.text }]}>
+            {profile.name}
+          </Text>
+          <Text style={[styles.email, { color: theme.colors.textLight }]}>
+            {profile.email}
+          </Text>
+
+          <View style={styles.actionsContainer}>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                { backgroundColor: theme.colors.primary },
+              ]}
+              onPress={() => navigation.navigate("EditProfile")}
+            >
+              <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.actionButtonText}>Edit Profile</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                { backgroundColor: theme.colors.success },
+              ]}
+              onPress={() => navigation.navigate("Orders")}
+            >
+              <Ionicons name="receipt-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.actionButtonText}>View Orders</Text>
+            </TouchableOpacity>
+          </View>
+        </Card>
+
+        <View style={styles.sectionHeader}>
+          <Ionicons name="heart" size={20} color={theme.colors.error} />
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            My Favorites
+          </Text>
+        </View>
+
+        {favoriteProviders.length === 0 ? (
+          <Card style={styles.emptyStateCard}>
+            <View style={styles.emptyStateContainer}>
+              <Ionicons
+                name="heart-outline"
+                size={60}
+                color={theme.colors.border}
+              />
+              <Text
+                style={[styles.noFavoritesText, { color: theme.colors.text }]}
+              >
+                No favorites added yet
+              </Text>
+              <Text
+                style={[
+                  styles.emptyStateSubtext,
+                  { color: theme.colors.textLight },
+                ]}
+              >
+                Your favorite laundry services will appear here
+              </Text>
+              <Button
+                title="Explore Services"
+                icon="search-outline"
+                onPress={() => navigation.navigate("Home")}
+                variant="outlined"
+                style={{ marginTop: 16 }}
+              />
+            </View>
+          </Card>
+        ) : (
+          favoriteProviders.map((item) => (
+            <Card key={item.serviceProviderId} style={styles.favoriteCard}>
+              <TouchableOpacity
+                style={styles.favoriteCardContent}
+                onPress={() =>
+                  navigation.navigate("ServiceProviderScreen", {
+                    providerId: item.serviceProviderId,
+                  })
+                }
+              >
+                <Image source={{ uri: item.image }} style={styles.cardImage} />
+                <View style={styles.cardContent}>
+                  <Text
+                    style={[styles.providerName, { color: theme.colors.text }]}
+                  >
+                    {item.name}
+                  </Text>
+                  <View style={styles.ratingContainer}>
+                    <Ionicons name="star" size={16} color="#FFD700" />
+                    <Text
+                      style={[styles.rating, { color: theme.colors.textLight }]}
+                    >
+                      {item.rating}
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={24}
+                  color={theme.colors.primary}
                 />
-              </View>
-              <Text style={styles.name}>{profile.name}</Text>
-              <Text style={styles.email}>{profile.email}</Text>
-
-              <View style={styles.actionsContainer}>
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => navigation.navigate("EditProfile")}
-                >
-                  <MaterialIcons name="edit" size={20} color="#FFFFFF" />
-                  <Text style={styles.actionButtonText}>Edit Profile</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.ordersButton]}
-                  onPress={() => navigation.navigate("Orders")}
-                >
-                  <MaterialIcons name="receipt" size={20} color="#FFFFFF" />
-                  <Text style={styles.actionButtonText}>View Orders</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.sectionHeader}>
-              <MaterialIcons name="favorite" size={20} color="#FF3B30" />
-              <Text style={styles.sectionTitle}>My Favorites</Text>
-            </View>
-
-            {favoriteProviders.length === 0 && (
-              <View style={styles.emptyStateContainer}>
-                <MaterialIcons
-                  name="favorite-border"
-                  size={48}
-                  color="#CCCCCC"
-                />
-                <Text style={styles.noFavoritesText}>
-                  No favorites added yet.
-                </Text>
-                <Text style={styles.emptyStateSubtext}>
-                  Your favorite laundry services will appear here
-                </Text>
-              </View>
-            )}
-          </>
-        }
-        data={favoriteProviders}
-        keyExtractor={(item) => item.serviceProviderId}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() =>
-              navigation.navigate("ServiceProviderScreen", {
-                providerId: item.serviceProviderId,
-              })
-            }
-          >
-            <Image source={{ uri: item.image }} style={styles.cardImage} />
-            <View style={styles.cardContent}>
-              <Text style={styles.providerName}>{item.name}</Text>
-              <View style={styles.ratingContainer}>
-                <MaterialIcons name="star" size={16} color="#FFC107" />
-                <Text style={styles.rating}>{item.rating}</Text>
-              </View>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color="#CCCCCC" />
-          </TouchableOpacity>
+              </TouchableOpacity>
+            </Card>
+          ))
         )}
-        ListFooterComponent={
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <MaterialIcons name="logout" size={20} color="#FFFFFF" />
-            <Text style={styles.logoutButtonText}>Logout</Text>
-          </TouchableOpacity>
-        }
-        contentContainerStyle={{ paddingBottom: 30 }}
-      />
+
+        <Button
+          title="Logout"
+          icon="log-out-outline"
+          onPress={handleLogout}
+          variant="error"
+          style={styles.logoutButton}
+        />
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -226,51 +307,44 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8F9FA",
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEEEEE",
-    backgroundColor: "#FFFFFF",
+  scrollView: {
+    flex: 1,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#333333",
-    textAlign: "center",
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8F9FA",
-    padding: 20,
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
-    color: "#666666",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
   },
   errorText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#666666",
+    fontSize: 18,
+    fontWeight: "600",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorSubText: {
+    fontSize: 14,
     textAlign: "center",
   },
-  profileContainer: {
+  profileCard: {
     alignItems: "center",
-    paddingVertical: 30,
-    paddingHorizontal: 20,
-    backgroundColor: "#FFFFFF",
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    padding: 24,
+    borderRadius: 16,
+    marginBottom: 20,
   },
   avatarContainer: {
     padding: 3,
@@ -288,17 +362,15 @@ const styles = StyleSheet.create({
     height: 110,
     borderRadius: 55,
     borderWidth: 3,
-    borderColor: "#007AFF",
+    borderColor: "#FFFFFF",
   },
   name: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "#333333",
-    marginBottom: 4,
+    fontWeight: "600",
+    marginBottom: 8,
   },
   email: {
     fontSize: 16,
-    color: "#666666",
     marginBottom: 20,
   },
   actionsContainer: {
@@ -306,81 +378,66 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: "100%",
     marginTop: 10,
+    gap: 12,
   },
   actionButton: {
-    backgroundColor: "#007AFF",
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
-    marginHorizontal: 6,
     flexDirection: "row",
     alignItems: "center",
-    shadowColor: "#007AFF",
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
     elevation: 2,
-  },
-  ordersButton: {
-    backgroundColor: "#34C759",
   },
   actionButtonText: {
     color: "#FFFFFF",
     fontWeight: "600",
     fontSize: 15,
-    marginLeft: 6,
+    marginLeft: 8,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    marginTop: 20,
+    paddingVertical: 16,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: "600",
     marginLeft: 8,
-    color: "#333333",
+  },
+  emptyStateCard: {
+    borderRadius: 16,
+    marginBottom: 20,
   },
   emptyStateContainer: {
     alignItems: "center",
     justifyContent: "center",
     padding: 30,
-    backgroundColor: "#FFFFFF",
-    margin: 20,
-    borderRadius: 12,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 1,
   },
   noFavoritesText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
     fontWeight: "600",
-    color: "#666666",
   },
   emptyStateSubtext: {
     fontSize: 14,
-    color: "#999999",
     textAlign: "center",
     marginTop: 8,
+    maxWidth: 250,
   },
-  card: {
+  favoriteCard: {
+    borderRadius: 16,
+    marginBottom: 12,
+    padding: 0,
+    overflow: "hidden",
+  },
+  favoriteCardContent: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
     padding: 14,
-    marginVertical: 8,
-    marginHorizontal: 16,
     alignItems: "center",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 1,
   },
   cardImage: {
     width: 70,
@@ -394,8 +451,7 @@ const styles = StyleSheet.create({
   },
   providerName: {
     fontSize: 16,
-    fontWeight: "bold",
-    color: "#333333",
+    fontWeight: "600",
     marginBottom: 4,
   },
   ratingContainer: {
@@ -404,29 +460,11 @@ const styles = StyleSheet.create({
   },
   rating: {
     fontSize: 14,
-    color: "#666666",
     marginLeft: 4,
   },
   logoutButton: {
-    backgroundColor: "#FF3B30",
-    paddingVertical: 14,
-    marginHorizontal: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 30,
-    flexDirection: "row",
-    justifyContent: "center",
-    shadowColor: "#FF3B30",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  logoutButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
-    fontSize: 16,
-    marginLeft: 8,
+    marginTop: 24,
+    marginHorizontal: 8,
   },
 });
 

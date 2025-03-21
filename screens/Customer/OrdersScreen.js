@@ -227,7 +227,7 @@ const OrderScreen = () => {
               icon="star"
               size="small"
               variant="primary"
-              style={{ flex: 1 }}
+              style={{ flex: 1, marginRight: 10 }}
               onPress={() => handleReviewOrder(order)}
             />
           )}
@@ -291,7 +291,7 @@ const OrderScreen = () => {
                 {
                   color:
                     activeTab === "current"
-                      ? theme.colors.primary
+                      ? "#FFFFFF"
                       : theme.colors.textLight,
                   fontWeight: activeTab === "current" ? "600" : "500",
                 },
@@ -329,7 +329,7 @@ const OrderScreen = () => {
                 {
                   color:
                     activeTab === "completed"
-                      ? theme.colors.primary
+                      ? "#FFFFFF"
                       : theme.colors.textLight,
                   fontWeight: activeTab === "completed" ? "600" : "500",
                 },
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
   tabContainer: {
     flexDirection: "row",
     padding: 4,
-    borderRadius: 16,
+    borderRadius: 15,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
-    marginHorizontal: 4,
+    marginHorizontal: 1,
     borderRadius: 12,
   },
   tabIcon: {

@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   Platform,
   Modal,
+  KeyboardAvoidingView,
+  StatusBar,
 } from "react-native";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { auth, firestore, app } from "../../firebaseConfig";
@@ -26,6 +28,8 @@ import { uploadImageToCloudinary } from "../../imageService";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { useTheme } from "../../theme/ThemeContext";
 
 const SPAccountDetails = () => {
   const [loading, setLoading] = useState(true);
@@ -45,7 +49,10 @@ const SPAccountDetails = () => {
     latitude: null,
     longitude: null,
   });
+
+  const [focusedInput, setFocusedInput] = useState(null);
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
 
   useEffect(() => {
     fetchUserDetails();
@@ -267,9 +274,10 @@ const SPAccountDetails = () => {
   if (loading) {
     return (
       <SafeAreaProvider>
+        <StatusBar barStyle="light-content" />
         <SafeAreaView style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#333333" />
-          <Text>Loading account details...</Text>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingText}>Loading account details...</Text>
         </SafeAreaView>
       </SafeAreaProvider>
     );
@@ -277,140 +285,325 @@ const SPAccountDetails = () => {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container} edges={["top"]}>
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <View
-            style={[
-              styles.contentContainer,
-              { paddingTop: insets.top > 0 ? 10 : 20 },
-            ]}
-          >
-            <Text style={styles.title}>Account Details</Text>
+      <StatusBar barStyle="light-content" />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <LinearGradient
+          colors={[theme.colors.primary, theme.colors.primaryDark]}
+          style={styles.headerGradient}
+        >
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>Account Details</Text>
+          </View>
+        </LinearGradient>
 
-            <View style={styles.profileImageContainer}>
-              {profilePicture ? (
-                <Image
-                  source={{ uri: profilePicture }}
-                  style={styles.profileImage}
-                />
-              ) : (
-                <View style={styles.placeholderImage}>
-                  <Text style={styles.placeholderText}>No Image</Text>
+        <SafeAreaView style={styles.container} edges={["bottom"]}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.profileSection}>
+              <View style={styles.profileImageContainer}>
+                {profilePicture ? (
+                  <Image
+                    source={{ uri: profilePicture }}
+                    style={styles.profileImage}
+                  />
+                ) : (
+                  <View style={styles.placeholderImage}>
+                    <Ionicons
+                      name="business-outline"
+                      size={40}
+                      color="#FFFFFF"
+                    />
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={[
+                    styles.uploadButton,
+                    { backgroundColor: theme.colors.primary },
+                  ]}
+                  onPress={pickImage}
+                  disabled={imageUploading}
+                >
+                  <Ionicons
+                    name="camera"
+                    size={18}
+                    color="#FFFFFF"
+                    style={styles.buttonIcon}
+                  />
+                  <Text style={styles.uploadButtonText}>
+                    {imageUploading ? "Uploading..." : "Change Photo"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.profileSubtitle}>
+                Manage your business profile
+              </Text>
+            </View>
+
+            <View style={styles.formContainer}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>
+                  Full Name <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    focusedInput === "name" && {
+                      borderColor: theme.colors.primary,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="person-outline"
+                    size={20}
+                    color={
+                      focusedInput === "name" ? theme.colors.primary : "#666"
+                    }
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your full name"
+                    placeholderTextColor={theme.colors.primary + "99"}
+                    value={name}
+                    onChangeText={setName}
+                    onFocus={() => setFocusedInput("name")}
+                    onBlur={() => setFocusedInput(null)}
+                  />
                 </View>
-              )}
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Email Address</Text>
+                <View
+                  style={[styles.inputWrapper, styles.disabledInputWrapper]}
+                >
+                  <Ionicons
+                    name="mail-outline"
+                    size={20}
+                    color="#666"
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={[styles.input, styles.disabledInput]}
+                    placeholder="Email address"
+                    value={email}
+                    editable={false}
+                  />
+                  <View style={styles.readOnlyBadge}>
+                    <Text style={styles.readOnlyText}>Read-only</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>CNIC</Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    focusedInput === "cnic" && {
+                      borderColor: theme.colors.primary,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="card-outline"
+                    size={20}
+                    color={
+                      focusedInput === "cnic" ? theme.colors.primary : "#666"
+                    }
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Format: 12345-1234567-1"
+                    placeholderTextColor={theme.colors.primary + "99"}
+                    value={cnic}
+                    onChangeText={setCnic}
+                    keyboardType="number-pad"
+                    onFocus={() => setFocusedInput("cnic")}
+                    onBlur={() => setFocusedInput(null)}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>
+                  Business Name <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    focusedInput === "business" && {
+                      borderColor: theme.colors.primary,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="business-outline"
+                    size={20}
+                    color={
+                      focusedInput === "business"
+                        ? theme.colors.primary
+                        : "#666"
+                    }
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your business name"
+                    placeholderTextColor={theme.colors.primary + "99"}
+                    value={businessName}
+                    onChangeText={setBusinessName}
+                    onFocus={() => setFocusedInput("business")}
+                    onBlur={() => setFocusedInput(null)}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>
+                  Phone Number <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    focusedInput === "phone" && {
+                      borderColor: theme.colors.primary,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="call-outline"
+                    size={20}
+                    color={
+                      focusedInput === "phone" ? theme.colors.primary : "#666"
+                    }
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your phone number"
+                    placeholderTextColor={theme.colors.primary + "99"}
+                    value={phone}
+                    onChangeText={setPhone}
+                    keyboardType="phone-pad"
+                    onFocus={() => setFocusedInput("phone")}
+                    onBlur={() => setFocusedInput(null)}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>
+                  Address <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    focusedInput === "address" && {
+                      borderColor: theme.colors.primary,
+                    },
+                    { height: 80 },
+                  ]}
+                >
+                  <Ionicons
+                    name="home-outline"
+                    size={20}
+                    color={
+                      focusedInput === "address" ? theme.colors.primary : "#666"
+                    }
+                    style={[
+                      styles.inputIcon,
+                      { alignSelf: "flex-start", marginTop: 12 },
+                    ]}
+                  />
+                  <TextInput
+                    style={[
+                      styles.input,
+                      { height: 80, textAlignVertical: "top", paddingTop: 12 },
+                    ]}
+                    placeholder="Enter your business address"
+                    placeholderTextColor={theme.colors.primary + "99"}
+                    value={address}
+                    onChangeText={setAddress}
+                    multiline
+                    onFocus={() => setFocusedInput("address")}
+                    onBlur={() => setFocusedInput(null)}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>
+                  Pin Location on Map <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.mapButton,
+                    { backgroundColor: theme.colors.primary },
+                  ]}
+                  onPress={openMap}
+                >
+                  <Ionicons
+                    name="location"
+                    size={20}
+                    color="#fff"
+                    style={styles.mapButtonIcon}
+                  />
+                  <Text style={styles.mapButtonText}>
+                    {coordinates.latitude && coordinates.longitude
+                      ? "Update Location"
+                      : "Select Location on Map"}
+                  </Text>
+                </TouchableOpacity>
+
+                {coordinates.latitude && coordinates.longitude && (
+                  <View style={styles.coordinatesDisplay}>
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={16}
+                      color={theme.colors.primary}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={styles.coordinatesText}>
+                      Location selected successfully
+                    </Text>
+                  </View>
+                )}
+              </View>
 
               <TouchableOpacity
-                style={styles.uploadButton}
-                onPress={pickImage}
-                disabled={imageUploading}
+                style={[
+                  styles.saveButton,
+                  { backgroundColor: theme.colors.primary },
+                ]}
+                onPress={saveChanges}
+                disabled={saving}
               >
-                <Text style={styles.uploadButtonText}>
-                  {imageUploading ? "Uploading..." : "Upload Picture"}
-                </Text>
+                {saving ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="save-outline"
+                      size={20}
+                      color="#FFFFFF"
+                      style={styles.buttonIcon}
+                    />
+                    <Text style={styles.saveButtonText}>Save Changes</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Full Name *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your full name"
-                value={name}
-                onChangeText={setName}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email Address</Text>
-              <TextInput
-                style={[styles.input, styles.disabledInput]}
-                placeholder="Email address"
-                value={email}
-                editable={false}
-              />
-              <Text style={styles.helperText}>Email cannot be changed</Text>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>CNIC</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Format: 12345-1234567-1"
-                value={cnic}
-                onChangeText={setCnic}
-                keyboardType="number-pad"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Business Name *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your business name"
-                value={businessName}
-                onChangeText={setBusinessName}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Phone Number *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your phone number"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Address *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your business address"
-                value={address}
-                onChangeText={setAddress}
-                multiline
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Pin Location on Map *</Text>
-              <TouchableOpacity style={styles.mapButton} onPress={openMap}>
-                <Ionicons
-                  name="location"
-                  size={20}
-                  color="#fff"
-                  style={styles.mapButtonIcon}
-                />
-                <Text style={styles.mapButtonText}>
-                  {coordinates.latitude && coordinates.longitude
-                    ? "Update Location"
-                    : "Select Location on Map"}
-                </Text>
-              </TouchableOpacity>
-
-              {coordinates.latitude && coordinates.longitude && (
-                <View style={styles.coordinatesDisplay}>
-                  <Text style={styles.coordinatesText}>
-                    Lat: {coordinates.latitude.toFixed(6)}, Lng:{" "}
-                    {coordinates.longitude.toFixed(6)}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <TouchableOpacity
-              style={styles.saveButton}
-              onPress={saveChanges}
-              disabled={saving}
-            >
-              <Text style={styles.saveButtonText}>
-                {saving ? "Saving..." : "Save Changes"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </SafeAreaView>
 
         {/* Map Modal */}
         <Modal
@@ -419,15 +612,18 @@ const SPAccountDetails = () => {
           onRequestClose={() => setMapVisible(false)}
         >
           <SafeAreaView style={styles.mapModalContainer}>
-            <View style={styles.mapHeader}>
+            <LinearGradient
+              colors={[theme.colors.primary, theme.colors.primaryDark]}
+              style={styles.mapHeader}
+            >
               <Text style={styles.mapTitle}>Select Your Business Location</Text>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setMapVisible(false)}
               >
-                <Ionicons name="close" size={24} color="#333333" />
+                <Ionicons name="close" size={24} color="#FFFFFF" />
               </TouchableOpacity>
-            </View>
+            </LinearGradient>
 
             {region ? (
               <View style={styles.mapWrapper}>
@@ -448,9 +644,18 @@ const SPAccountDetails = () => {
 
                 <View style={styles.mapOverlay}>
                   <TouchableOpacity
-                    style={styles.confirmLocationButton}
+                    style={[
+                      styles.confirmLocationButton,
+                      { backgroundColor: theme.colors.primary },
+                    ]}
                     onPress={confirmLocation}
                   >
+                    <Ionicons
+                      name="checkmark"
+                      size={20}
+                      color="#FFFFFF"
+                      style={styles.buttonIcon}
+                    />
                     <Text style={styles.confirmLocationText}>
                       Confirm Location
                     </Text>
@@ -459,13 +664,13 @@ const SPAccountDetails = () => {
               </View>
             ) : (
               <View style={styles.mapLoading}>
-                <ActivityIndicator size="large" color="#333333" />
-                <Text>Loading map...</Text>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={styles.loadingText}>Loading map...</Text>
               </View>
             )}
           </SafeAreaView>
         </Modal>
-      </SafeAreaView>
+      </KeyboardAvoidingView>
     </SafeAreaProvider>
   );
 };
@@ -473,113 +678,149 @@ const SPAccountDetails = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#ffffff",
+  },
+  headerGradient: {
+    paddingTop: 40,
+    paddingBottom: 16,
+    paddingHorizontal: 24,
+  },
+  headerContent: {
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#ffffff",
+    textAlign: "center",
   },
   scrollContainer: {
-    flexGrow: 1,
-  },
-  contentContainer: {
-    padding: 24,
+    paddingBottom: 40,
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#ffffff",
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#666666",
+  },
+  profileSection: {
     alignItems: "center",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "600",
+    marginTop: 16,
     marginBottom: 24,
-    color: "#333333",
-    textAlign: "center",
   },
   profileImageContainer: {
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 12,
   },
   profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 16,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+    marginBottom: 10,
   },
   placeholderImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "#e0e0e0",
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "#cccccc",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
-  },
-  placeholderText: {
-    color: "#666666",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+    marginBottom: 10,
   },
   uploadButton: {
-    backgroundColor: "#333333",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 16,
   },
   uploadButtonText: {
     color: "white",
     fontWeight: "600",
-    fontSize: 15,
+    fontSize: 13,
   },
-  inputContainer: {
-    marginBottom: 20,
-    width: "100%",
-  },
-  label: {
-    fontSize: 15,
-    marginBottom: 8,
-    fontWeight: "500",
-    color: "#333333",
-  },
-  input: {
-    height: 50,
-    borderColor: "#e0e0e0",
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    backgroundColor: "#ffffff",
-    fontSize: 15,
-  },
-  disabledInput: {
-    backgroundColor: "#f9f9f9",
-    color: "#666666",
-  },
-  helperText: {
-    fontSize: 12,
+  profileSubtitle: {
+    fontSize: 14,
     color: "#666666",
     marginTop: 4,
   },
-  saveButton: {
-    backgroundColor: "#333333",
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 16,
-    marginBottom: 8,
+  formContainer: {
+    paddingHorizontal: 20,
   },
-  saveButtonText: {
-    color: "white",
-    fontWeight: "600",
-    fontSize: 16,
+  inputGroup: {
+    marginBottom: 14,
+  },
+  label: {
+    fontSize: 14,
+    marginBottom: 6,
+    fontWeight: "500",
+    color: "#333333",
+    paddingLeft: 4,
+  },
+  requiredStar: {
+    color: "#FF3B30",
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 12,
+    backgroundColor: "#f9f9f9",
+    height: 56,
+    overflow: "hidden",
+  },
+  disabledInputWrapper: {
+    backgroundColor: "#f0f0f0",
+  },
+  inputIcon: {
+    paddingLeft: 16,
+    width: 46,
+    textAlign: "center",
+  },
+  input: {
+    flex: 1,
+    height: 56,
+    fontSize: 15,
+    color: "#333333",
+    paddingHorizontal: 12,
+  },
+  disabledInput: {
+    color: "#666666",
+    fontStyle: "italic",
+  },
+  readOnlyBadge: {
+    backgroundColor: "#f0f0f0",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  readOnlyText: {
+    fontSize: 12,
+    color: "#666666",
+    fontWeight: "500",
+  },
+  buttonIcon: {
+    marginRight: 8,
   },
   mapButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#333333",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    height: 56,
     borderRadius: 12,
   },
   mapButtonIcon: {
@@ -591,35 +832,49 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   coordinatesDisplay: {
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: "#f0f0f0",
-    borderRadius: 8,
   },
   coordinatesText: {
     fontSize: 14,
     color: "#666666",
-    textAlign: "center",
+  },
+  saveButton: {
+    flexDirection: "row",
+    height: 56,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  saveButtonText: {
+    color: "white",
+    fontWeight: "600",
+    fontSize: 16,
   },
   mapModalContainer: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#ffffff",
   },
   mapHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-    backgroundColor: "#ffffff",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   mapTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333333",
+    color: "#FFFFFF",
   },
   closeButton: {
     padding: 8,
@@ -634,20 +889,20 @@ const styles = StyleSheet.create({
   mapOverlay: {
     position: "absolute",
     bottom: 24,
-    left: 16,
-    right: 16,
+    left: 20,
+    right: 20,
   },
   confirmLocationButton: {
-    backgroundColor: "#333333",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    flexDirection: "row",
+    height: 56,
+    justifyContent: "center",
     alignItems: "center",
+    borderRadius: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
   },
   confirmLocationText: {
     color: "white",

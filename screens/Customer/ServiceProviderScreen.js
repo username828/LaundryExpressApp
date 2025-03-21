@@ -26,6 +26,10 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import { useTheme } from "../../theme/ThemeContext";
+import Card from "../../components/Card";
+import Button from "../../components/Button";
+import Header from "../../components/Header";
 
 const sentimentAnalyzer = new Sentiment();
 
@@ -33,6 +37,7 @@ const ServiceProviderScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
 
   // Check if route.params exists and has providerId
   const providerId = route.params?.providerId;
@@ -45,6 +50,52 @@ const ServiceProviderScreen = () => {
   const [reviews, setReviews] = useState([]);
   const [filteredReviews, setFilteredReviews] = useState([]);
   const [selectedFilter, setSelectedFilter] = useState("All");
+
+  // Helper function to render stars based on rating
+  const renderStars = (rating) => {
+    const ratingNum = parseFloat(rating) || 0;
+    const fullStars = Math.floor(ratingNum);
+    const halfStar = ratingNum % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+
+    return (
+      <View style={styles.starsContainer}>
+        {[...Array(fullStars)].map((_, i) => (
+          <Ionicons
+            key={`full-${i}`}
+            name="star"
+            size={16}
+            color="#FFD700"
+            style={styles.starIcon}
+          />
+        ))}
+
+        {halfStar && (
+          <Ionicons
+            key="half"
+            name="star-half"
+            size={16}
+            color="#FFD700"
+            style={styles.starIcon}
+          />
+        )}
+
+        {[...Array(emptyStars)].map((_, i) => (
+          <Ionicons
+            key={`empty-${i}`}
+            name="star-outline"
+            size={16}
+            color="#FFD700"
+            style={styles.starIcon}
+          />
+        ))}
+
+        <Text style={[styles.ratingText, { color: theme.colors.textLight }]}>
+          {rating || "N/A"}
+        </Text>
+      </View>
+    );
+  };
 
   useEffect(() => {
     // If providerId is missing, show an error and go back
@@ -173,35 +224,78 @@ const ServiceProviderScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3498db" />
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+      >
+        <Header
+          title="Service Provider"
+          showBackButton
+          onBackPress={handleBack}
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={[styles.loadingText, { color: theme.colors.textLight }]}>
+            Loading provider details...
+          </Text>
+        </View>
       </SafeAreaView>
     );
   }
 
   if (!providerDetails) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <Text style={styles.errorMessage}>Service provider not found.</Text>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+      >
+        <Header
+          title="Service Provider"
+          showBackButton
+          onBackPress={handleBack}
+        />
+        <View style={styles.errorContainer}>
+          <Ionicons
+            name="alert-circle-outline"
+            size={60}
+            color={theme.colors.error}
+          />
+          <Text style={[styles.errorText, { color: theme.colors.text }]}>
+            Service provider not found
+          </Text>
+          <Text
+            style={[styles.errorSubText, { color: theme.colors.textLight }]}
+          >
+            We couldn't find the details for this service provider
+          </Text>
+          <Button
+            title="Go Back"
+            icon="arrow-back-outline"
+            onPress={handleBack}
+            style={{ marginTop: 20 }}
+          />
+        </View>
       </SafeAreaView>
     );
   }
 
   const specialOffers = [
-    { id: "1", title: "20% off on first service!", icon: "percent" },
-    { id: "2", title: "Free pickup & delivery", icon: "truck" },
-    { id: "3", title: "Loyalty rewards for regular customers", icon: "gift" },
+    { id: "1", title: "20% off on first service!", icon: "pricetag-outline" },
+    { id: "2", title: "Free pickup & delivery", icon: "car-outline" },
+    {
+      id: "3",
+      title: "Loyalty rewards for regular customers",
+      icon: "gift-outline",
+    },
   ];
 
   // Helper functions for review styling
   const getReviewStyle = (sentiment) => {
     switch (sentiment) {
       case "Positive":
-        return { borderLeftColor: "#4CD964" }; // Green
+        return { borderLeftColor: theme.colors.success };
       case "Negative":
-        return { borderLeftColor: "#FF3B30" }; // Red
+        return { borderLeftColor: theme.colors.error };
       default:
-        return { borderLeftColor: "#FFCC00" }; // Yellow for Neutral
+        return { borderLeftColor: theme.colors.warning };
     }
   };
 
@@ -217,15 +311,28 @@ const ServiceProviderScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <View style={[styles.container, { paddingTop: insets.top > 0 ? 0 : 20 }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 10 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Back Button */}
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={handleBack}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="arrow-back" size={24} color={theme.colors.primary} />
         </TouchableOpacity>
 
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Provider Header */}
+        {/* Provider Header */}
+        <Card style={styles.providerCard}>
           <View style={styles.header}>
             <Image
               source={{
@@ -234,102 +341,212 @@ const ServiceProviderScreen = () => {
               style={styles.providerImage}
             />
             <View style={styles.headerTextContainer}>
-              <Text style={styles.providerName}>
+              <Text style={[styles.providerName, { color: theme.colors.text }]}>
                 {providerDetails.name || "Default Name"}
               </Text>
-              <View style={styles.ratingContainer}>
-                <Ionicons name="star" size={18} color="#FFD700" />
-                <Text style={styles.rating}>
-                  {providerDetails.rating || "N/A"}
-                </Text>
+              {renderStars(providerDetails.rating)}
+            </View>
+          </View>
+
+          <Text style={[styles.description, { color: theme.colors.text }]}>
+            {providerDetails.description || "No description available"}
+          </Text>
+        </Card>
+
+        {/* Special Offers */}
+        <View style={styles.sectionHeader}>
+          <Ionicons name="gift" size={20} color={theme.colors.primary} />
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            Special Offers
+          </Text>
+        </View>
+
+        <Card style={styles.offersCard}>
+          {specialOffers.map((offer) => (
+            <View key={offer.id} style={styles.offerItem}>
+              <View
+                style={[
+                  styles.offerIconContainer,
+                  { backgroundColor: theme.colors.primary + "15" },
+                ]}
+              >
+                <Ionicons
+                  name={offer.icon}
+                  size={20}
+                  color={theme.colors.primary}
+                />
               </View>
-              <Text style={styles.description}>
-                {providerDetails.description || "No description available"}
+              <Text style={[styles.offerText, { color: theme.colors.text }]}>
+                {offer.title}
               </Text>
             </View>
-          </View>
+          ))}
+        </Card>
 
-          {/* Special Offers */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Special Offers</Text>
-            {specialOffers.map((offer) => (
-              <View key={offer.id} style={styles.offerItem}>
-                <Ionicons
-                  name="gift-outline"
-                  size={22}
-                  color="#3498db"
-                  style={styles.offerIcon}
-                />
-                <Text style={styles.offerText}>{offer.title}</Text>
-              </View>
-            ))}
-          </View>
+        {/* Services */}
+        <View style={styles.sectionHeader}>
+          <Ionicons name="list" size={20} color={theme.colors.primary} />
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            Services Offered
+          </Text>
+        </View>
 
-          {/* Services */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Services Offered</Text>
-            {services.length > 0 ? (
-              services.map((item) => (
-                <View key={item.id} style={styles.serviceItem}>
-                  <View style={styles.serviceIconContainer}>
-                    <Ionicons name="water-outline" size={24} color="#3498db" />
-                  </View>
-                  <View style={styles.serviceTextContainer}>
-                    <Text style={styles.serviceName}>
-                      {item.name || "Service"}
-                    </Text>
-                    <Text style={styles.servicePrice}>
-                      ${item.price.toFixed(2) || "N/A"}
-                    </Text>
-                  </View>
-                </View>
-              ))
-            ) : (
-              <Text style={styles.noServicesText}>No services available</Text>
-            )}
-          </View>
-
-          {/* Reviews */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Reviews</Text>
-
-            {/* Filter Buttons */}
-            <View style={styles.filterButtonsContainer}>
-              {["All", "Positive", "Neutral", "Negative"].map((category) => (
-                <TouchableOpacity
-                  key={category}
+        <Card style={styles.servicesCard}>
+          {services.length > 0 ? (
+            services.map((item) => (
+              <View key={item.id} style={styles.serviceItem}>
+                <View
                   style={[
-                    styles.filterButton,
-                    selectedFilter === category && styles.filterButtonActive,
+                    styles.serviceIconContainer,
+                    { backgroundColor: theme.colors.primary + "15" },
                   ]}
-                  onPress={() => filterReviews(category)}
                 >
+                  <Ionicons
+                    name="water-outline"
+                    size={22}
+                    color={theme.colors.primary}
+                  />
+                </View>
+                <View style={styles.serviceTextContainer}>
+                  <Text
+                    style={[styles.serviceName, { color: theme.colors.text }]}
+                  >
+                    {item.name || "Service"}
+                  </Text>
                   <Text
                     style={[
-                      styles.filterButtonText,
-                      selectedFilter === category &&
-                        styles.filterButtonTextActive,
+                      styles.servicePrice,
+                      { color: theme.colors.primary },
                     ]}
                   >
-                    {category}
+                    ${item.price.toFixed(2) || "N/A"}
                   </Text>
-                </TouchableOpacity>
-              ))}
+                </View>
+              </View>
+            ))
+          ) : (
+            <View style={styles.emptyStateContainer}>
+              <Ionicons
+                name="list-outline"
+                size={40}
+                color={theme.colors.border}
+              />
+              <Text
+                style={[
+                  styles.noServicesText,
+                  { color: theme.colors.textLight },
+                ]}
+              >
+                No services available
+              </Text>
             </View>
+          )}
+        </Card>
 
-            {/* Reviews List */}
+        {/* Reviews */}
+        <View style={styles.sectionHeader}>
+          <Ionicons
+            name="chatbubble-ellipses"
+            size={20}
+            color={theme.colors.primary}
+          />
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            Reviews
+          </Text>
+        </View>
+
+        <Card style={styles.reviewsCard}>
+          {/* Filter Buttons */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterScrollView}
+            contentContainerStyle={styles.filterButtonsContainer}
+          >
+            {["All", "Positive", "Neutral", "Negative"].map((category) => (
+              <TouchableOpacity
+                key={category}
+                style={[
+                  styles.filterButton,
+                  {
+                    backgroundColor:
+                      selectedFilter === category
+                        ? theme.colors.primary
+                        : theme.colors.surface,
+                  },
+                ]}
+                onPress={() => filterReviews(category)}
+              >
+                <Text
+                  style={[
+                    styles.filterButtonText,
+                    {
+                      color:
+                        selectedFilter === category
+                          ? "#FFFFFF"
+                          : theme.colors.text,
+                    },
+                  ]}
+                >
+                  {category}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Reviews List */}
+          <View style={styles.reviewsContainer}>
             {filteredReviews.length > 0 ? (
               filteredReviews.map((item) => (
                 <View
                   key={item.id}
-                  style={[styles.reviewItem, getReviewStyle(item.sentiment)]}
+                  style={[
+                    styles.reviewItem,
+                    getReviewStyle(item.sentiment),
+                    { backgroundColor: theme.colors.surface },
+                  ]}
                 >
-                  <Text style={styles.reviewText}>{item.comment}</Text>
+                  <Text
+                    style={[styles.reviewText, { color: theme.colors.text }]}
+                  >
+                    {item.comment}
+                  </Text>
                   <View style={styles.reviewFooter}>
-                    <Text style={styles.reviewSentiment}>
-                      {getSentimentIcon(item.sentiment)} {item.sentiment}
-                    </Text>
-                    <Text style={styles.reviewDate}>
+                    <View
+                      style={[
+                        styles.sentimentTag,
+                        {
+                          backgroundColor:
+                            item.sentiment === "Positive"
+                              ? theme.colors.success + "20"
+                              : item.sentiment === "Negative"
+                              ? theme.colors.error + "20"
+                              : theme.colors.warning + "20",
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.reviewSentiment,
+                          {
+                            color:
+                              item.sentiment === "Positive"
+                                ? theme.colors.success
+                                : item.sentiment === "Negative"
+                                ? theme.colors.error
+                                : theme.colors.warning,
+                          },
+                        ]}
+                      >
+                        {getSentimentIcon(item.sentiment)} {item.sentiment}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.reviewDate,
+                        { color: theme.colors.textLight },
+                      ]}
+                    >
                       {item.date
                         ? new Date(item.date.toDate()).toLocaleDateString()
                         : ""}
@@ -338,57 +555,101 @@ const ServiceProviderScreen = () => {
                 </View>
               ))
             ) : (
-              <Text style={styles.noReviewsText}>No reviews available</Text>
+              <View style={styles.emptyStateContainer}>
+                <Ionicons
+                  name="chatbubbles-outline"
+                  size={40}
+                  color={theme.colors.border}
+                />
+                <Text
+                  style={[
+                    styles.noReviewsText,
+                    { color: theme.colors.textLight },
+                  ]}
+                >
+                  No reviews available
+                </Text>
+              </View>
             )}
           </View>
-        </ScrollView>
+        </Card>
+      </ScrollView>
 
-        {/* Order Button */}
-        <TouchableOpacity
-          style={styles.orderButton}
+      {/* Order Button */}
+      <View style={styles.bottomButtonContainer}>
+        <Button
+          title="Place Order"
+          icon="cart-outline"
           onPress={handleOrderPlacement}
-        >
-          <Text style={styles.orderButtonText}>Place Order</Text>
-        </TouchableOpacity>
+          style={styles.orderButton}
+        />
       </View>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 80,
+  },
+  backButton: {
+    marginBottom: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
   },
-  errorMessage: {
+  loadingText: {
+    marginTop: 16,
     fontSize: 16,
-    color: "#FF3B30",
-    textAlign: "center",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
-  backButton: {
-    padding: 12,
-    marginLeft: 8,
+  errorText: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorSubText: {
+    fontSize: 14,
+    textAlign: "center",
+  },
+  providerCard: {
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 20,
   },
   header: {
     flexDirection: "row",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    marginBottom: 12,
   },
   providerImage: {
-    width: 100,
-    height: 100,
+    width: 90,
+    height: 90,
     borderRadius: 12,
     marginRight: 16,
   },
@@ -398,66 +659,79 @@ const styles = StyleSheet.create({
   },
   providerName: {
     fontSize: 22,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 4,
+    fontWeight: "600",
+    marginBottom: 6,
   },
-  ratingContainer: {
+  starsContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    marginTop: 2,
   },
-  rating: {
-    fontSize: 16,
-    color: "#555",
+  starIcon: {
+    marginRight: 2,
+  },
+  ratingText: {
+    fontSize: 14,
     marginLeft: 4,
+    fontWeight: "500",
   },
   description: {
     fontSize: 14,
-    color: "#666",
     lineHeight: 20,
+    marginTop: 8,
   },
-  section: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-    paddingBottom: 8,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  offersCard: {
+    borderRadius: 16,
+    marginBottom: 20,
+    padding: 0,
+    overflow: "hidden",
   },
   offerItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: "rgba(0,0,0,0.05)",
   },
-  offerIcon: {
+  offerIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   offerText: {
     fontSize: 15,
-    color: "#555",
+    fontWeight: "500",
+  },
+  servicesCard: {
+    borderRadius: 16,
+    marginBottom: 20,
+    padding: 16,
   },
   serviceItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8f9fa",
-    padding: 12,
-    borderRadius: 12,
-    marginVertical: 6,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.05)",
   },
   serviceIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#e3f2fd",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -468,90 +742,94 @@ const styles = StyleSheet.create({
   serviceName: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
   },
   servicePrice: {
     fontSize: 15,
-    color: "#3498db",
     fontWeight: "500",
     marginTop: 2,
   },
+  emptyStateContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
   noServicesText: {
+    marginTop: 12,
+    fontSize: 14,
     textAlign: "center",
-    marginTop: 10,
-    color: "#888",
-    fontStyle: "italic",
+  },
+  reviewsCard: {
+    borderRadius: 16,
+    marginBottom: 20,
+    padding: 0,
+    overflow: "hidden",
+  },
+  filterScrollView: {
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.05)",
   },
   filterButtonsContainer: {
-    flexDirection: "row",
-    marginBottom: 16,
+    padding: 12,
+    gap: 8,
   },
   filterButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: "#f0f0f0",
-    marginRight: 8,
-  },
-  filterButtonActive: {
-    backgroundColor: "#3498db",
+    marginRight: 4,
   },
   filterButtonText: {
     fontSize: 14,
-    color: "#555",
+    fontWeight: "500",
   },
-  filterButtonTextActive: {
-    color: "white",
+  reviewsContainer: {
+    padding: 16,
   },
   reviewItem: {
-    padding: 12,
+    padding: 16,
     borderRadius: 12,
-    marginVertical: 6,
-    backgroundColor: "#f8f9fa",
+    marginBottom: 12,
     borderLeftWidth: 4,
   },
   reviewText: {
     fontSize: 15,
-    color: "#333",
     lineHeight: 20,
   },
   reviewFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 8,
+    alignItems: "center",
+    marginTop: 12,
+  },
+  sentimentTag: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
   },
   reviewSentiment: {
-    fontSize: 14,
-    fontWeight: "500",
+    fontSize: 13,
+    fontWeight: "600",
   },
   reviewDate: {
     fontSize: 12,
-    color: "#888",
   },
   noReviewsText: {
+    marginTop: 12,
+    fontSize: 14,
     textAlign: "center",
-    marginTop: 10,
-    color: "#888",
-    fontStyle: "italic",
+  },
+  bottomButtonContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0,0,0,0.05)",
   },
   orderButton: {
-    backgroundColor: "#3498db",
-    paddingVertical: 14,
     borderRadius: 12,
-    alignItems: "center",
-    marginTop: 10,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  orderButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
   },
 });
 

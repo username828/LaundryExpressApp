@@ -22,6 +22,8 @@ import { auth, firestore } from "../../firebaseConfig";
 import { useNavigation } from "@react-navigation/core";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { useTheme } from "../../theme/ThemeContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -29,6 +31,7 @@ const SPAuthScreen = () => {
   const [isLogin, setIsLogin] = useState(true);
   const navigation = useNavigation();
   const tabIndicatorPosition = useRef(new Animated.Value(0)).current;
+  const theme = useTheme();
 
   const handleToggle = () => {
     setIsLogin(!isLogin);
@@ -103,8 +106,8 @@ const SPAuthScreen = () => {
 
   // Calculate tab indicator position
   const translateX = tabIndicatorPosition.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, width * 0.5 - 24],
+    inputRange: [0, 1.19],
+    outputRange: [4, width * 0.5 + 4],
   });
 
   return (
@@ -112,29 +115,48 @@ const SPAuthScreen = () => {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      <View style={styles.gradient}>
+      <StatusBar barStyle="light-content" />
+      <LinearGradient
+        colors={[theme.colors.primary, theme.colors.primaryDark]}
+        style={styles.headerGradient}
+      >
+        <View style={styles.logoContainer}>
+          <View style={styles.iconCircle}>
+            <Ionicons name="business-outline" size={32} color="#FFFFFF" />
+          </View>
+          <Text style={styles.logo}>Laundry Express</Text>
+          <Text style={styles.logoTagline}>Service Provider Portal</Text>
+        </View>
+      </LinearGradient>
+      <View style={styles.contentContainer}>
         <ScrollView
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.logoContainer}>
-            <Text style={styles.logo}>Laundry Express</Text>
-            <Text style={styles.logoTagline}>Service Provider Portal</Text>
-          </View>
-
           <View style={styles.tabContainerWrapper}>
             <View style={styles.tabContainer}>
               <Animated.View
-                style={[styles.tabIndicator, { transform: [{ translateX }] }]}
+                style={[
+                  styles.tabIndicator,
+                  { transform: [{ translateX }] },
+                  { backgroundColor: theme.colors.background },
+                ]}
               />
               <TouchableOpacity
                 onPress={() => !isLogin && handleToggle()}
                 style={styles.tab}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.tabText, isLogin && styles.activeTabText]}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    isLogin && {
+                      color: theme.colors.primary,
+                      fontWeight: "700",
+                    },
+                  ]}
+                >
                   Login
                 </Text>
               </TouchableOpacity>
@@ -144,7 +166,13 @@ const SPAuthScreen = () => {
                 activeOpacity={0.7}
               >
                 <Text
-                  style={[styles.tabText, !isLogin && styles.activeTabText]}
+                  style={[
+                    styles.tabText,
+                    !isLogin && {
+                      color: theme.colors.primary,
+                      fontWeight: "700",
+                    },
+                  ]}
                 >
                   Register
                 </Text>
@@ -153,9 +181,9 @@ const SPAuthScreen = () => {
           </View>
 
           {isLogin ? (
-            <LoginForm onSubmit={handleLogin} />
+            <LoginForm onSubmit={handleLogin} theme={theme} />
           ) : (
-            <RegisterForm onSubmit={handleRegister} />
+            <RegisterForm onSubmit={handleRegister} theme={theme} />
           )}
         </ScrollView>
       </View>
@@ -163,8 +191,9 @@ const SPAuthScreen = () => {
   );
 };
 
-const InputField = ({ icon, isPassword, ...props }) => {
+const InputField = ({ icon, isPassword, theme, ...props }) => {
   const [secureTextEntry, setSecureTextEntry] = useState(isPassword);
+  const [isFocused, setIsFocused] = useState(false);
 
   const toggleSecureEntry = () => {
     setSecureTextEntry(!secureTextEntry);
@@ -172,18 +201,25 @@ const InputField = ({ icon, isPassword, ...props }) => {
 
   return (
     <View style={styles.inputContainer}>
-      <View style={styles.inputWrapper}>
+      <View
+        style={[
+          styles.inputWrapper,
+          isFocused && { borderColor: theme?.colors.primary },
+        ]}
+      >
         <View style={styles.inputRow}>
           <Ionicons
             name={icon}
             size={20}
-            color="#666"
+            color={isFocused ? theme?.colors.primary : "#666"}
             style={styles.inputIcon}
           />
           <TextInput
             style={styles.inputWithIcon}
-            placeholderTextColor="#999999"
+            placeholderTextColor={theme?.colors.primary + "99"}
             secureTextEntry={secureTextEntry}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             {...props}
           />
           {isPassword && (
@@ -194,7 +230,7 @@ const InputField = ({ icon, isPassword, ...props }) => {
               <Ionicons
                 name={secureTextEntry ? "eye-outline" : "eye-off-outline"}
                 size={20}
-                color="#666"
+                color={isFocused ? theme?.colors.primary : "#666"}
               />
             </TouchableOpacity>
           )}
@@ -204,7 +240,7 @@ const InputField = ({ icon, isPassword, ...props }) => {
   );
 };
 
-const LoginForm = ({ onSubmit }) => {
+const LoginForm = ({ onSubmit, theme }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -224,28 +260,34 @@ const LoginForm = ({ onSubmit }) => {
   return (
     <View style={styles.formContainer}>
       <InputField
-        label="Email"
         placeholder="Enter your email"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
         icon="mail-outline"
+        theme={theme}
       />
       <InputField
-        label="Password"
         placeholder="Enter your password"
         value={password}
         onChangeText={setPassword}
         isPassword={true}
         icon="lock-closed-outline"
+        theme={theme}
       />
       <TouchableOpacity
-        style={styles.button}
+        style={[styles.button, { backgroundColor: theme.colors.primary }]}
         onPress={() => onSubmit(email, password)}
         activeOpacity={0.9}
       >
-        <View style={styles.buttonGradient}>
+        <View style={styles.buttonContent}>
+          <Ionicons
+            name="log-in-outline"
+            size={20}
+            color="#FFFFFF"
+            style={styles.buttonIcon}
+          />
           <Text style={styles.buttonText}>Sign In</Text>
         </View>
       </TouchableOpacity>
@@ -254,13 +296,17 @@ const LoginForm = ({ onSubmit }) => {
         style={styles.forgotPasswordContainer}
         activeOpacity={0.7}
       >
-        <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+        <Text
+          style={[styles.forgotPasswordText, { color: theme.colors.primary }]}
+        >
+          Forgot Password?
+        </Text>
       </TouchableOpacity>
     </View>
   );
 };
 
-const RegisterForm = ({ onSubmit }) => {
+const RegisterForm = ({ onSubmit, theme }) => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -277,44 +323,50 @@ const RegisterForm = ({ onSubmit }) => {
   return (
     <View style={styles.formContainer}>
       <InputField
-        label="Name"
         placeholder="Enter your full name"
         value={name}
         onChangeText={setName}
         autoCapitalize="words"
         icon="person-outline"
+        theme={theme}
       />
       <InputField
-        label="Email"
         placeholder="Enter your email"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
         icon="mail-outline"
+        theme={theme}
       />
       <InputField
-        label="Password"
         placeholder="Create a password"
         value={password}
         onChangeText={setPassword}
         isPassword={true}
         icon="lock-closed-outline"
+        theme={theme}
       />
       <InputField
-        label="Confirm Password"
         placeholder="Confirm your password"
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         isPassword={true}
         icon="lock-closed-outline"
+        theme={theme}
       />
       <TouchableOpacity
-        style={styles.button}
+        style={[styles.button, { backgroundColor: theme.colors.primary }]}
         onPress={handleSubmit}
         activeOpacity={0.9}
       >
-        <View style={styles.buttonGradient}>
+        <View style={styles.buttonContent}>
+          <Ionicons
+            name="business-outline"
+            size={20}
+            color="#FFFFFF"
+            style={styles.buttonIcon}
+          />
           <Text style={styles.buttonText}>Create Account</Text>
         </View>
       </TouchableOpacity>
@@ -327,48 +379,73 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#ffffff",
   },
-  gradient: {
+  headerGradient: {
+    paddingTop: Platform.OS === "ios" ? 60 : 40,
+    paddingBottom: 30,
+    paddingHorizontal: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  contentContainer: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#ffffff",
   },
   scrollContainer: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "ios" ? 60 : 40,
+    paddingTop: 16,
     paddingBottom: 40,
   },
   logoContainer: {
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+  iconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 10,
   },
   logo: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "700",
-    color: "#1a1a1a",
+    color: "#ffffff",
   },
   logoTagline: {
     fontSize: 14,
-    color: "#666666",
+    color: "rgba(255, 255, 255, 0.8)",
     marginTop: 4,
   },
   tabContainerWrapper: {
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 20,
+    marginTop: 10,
   },
   tabContainer: {
     flexDirection: "row",
     marginBottom: 16,
-    backgroundColor: "#eaeaea",
+    backgroundColor: "#f0f0f0",
     borderRadius: 12,
     padding: 4,
     width: "100%",
     position: "relative",
     height: 52,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 2.5,
+    elevation: 1,
   },
   tabIndicator: {
     position: "absolute",
     height: 44,
-    width: "48.8%",
+    width: "50%",
     backgroundColor: "#ffffff",
     borderRadius: 8,
     left: 4,
@@ -395,60 +472,62 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#666666",
   },
-  activeTabText: {
-    color: "#1a1a1a",
-  },
   formContainer: {
     marginTop: 0,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   inputWrapper: {
     borderRadius: 12,
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    backgroundColor: "#f9f9f9",
   },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    height: 52,
+    height: 56,
   },
   inputIcon: {
     paddingLeft: 16,
+    width: 46,
+    textAlign: "center",
   },
   inputWithIcon: {
     flex: 1,
-    height: 52,
+    height: 56,
     paddingHorizontal: 12,
     fontSize: 15,
     color: "#333333",
   },
   eyeIcon: {
     padding: 10,
+    paddingRight: 16,
   },
   button: {
-    height: 52,
+    height: 56,
     borderRadius: 12,
-    overflow: "hidden",
-    marginTop: 20,
+    marginTop: 24,
     shadowColor: "#000000",
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 3,
     },
     shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowRadius: 5,
+    elevation: 5,
+    overflow: "hidden",
   },
-  buttonGradient: {
+  buttonContent: {
     flex: 1,
+    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#333333",
+  },
+  buttonIcon: {
+    marginRight: 8,
   },
   buttonText: {
     color: "#ffffff",
@@ -461,7 +540,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   forgotPasswordText: {
-    color: "#1a1a1a",
     fontSize: 14,
     fontWeight: "600",
   },

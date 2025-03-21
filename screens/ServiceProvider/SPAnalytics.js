@@ -7,14 +7,24 @@ import {
   ActivityIndicator,
   Dimensions,
   ScrollView,
+  StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LineChart, PieChart } from "react-native-chart-kit";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db } from "../../firebaseConfig";
-import Header from "../../components/Header";
 import { useTheme } from "../../theme/ThemeContext";
+import { LinearGradient } from "expo-linear-gradient";
+import {
+  TrendingUp,
+  DollarSign,
+  Package,
+  CreditCard,
+  ThumbsUp,
+  ThumbsDown,
+  Minus,
+} from "lucide-react-native";
 
 const { width } = Dimensions.get("window");
 
@@ -31,22 +41,22 @@ const SPAnalytics = () => {
     {
       name: "Positive",
       population: 0,
-      color: "#4CAF50",
-      legendFontColor: "#7F7F7F",
+      color: theme.colors.success,
+      legendFontColor: "#555555",
       legendFontSize: 12,
     },
     {
       name: "Neutral",
       population: 0,
-      color: "#FFC107",
-      legendFontColor: "#7F7F7F",
+      color: theme.colors.warning,
+      legendFontColor: "#555555",
       legendFontSize: 12,
     },
     {
       name: "Negative",
       population: 0,
-      color: "#F44336",
-      legendFontColor: "#7F7F7F",
+      color: theme.colors.error,
+      legendFontColor: "#555555",
       legendFontSize: 12,
     },
   ]);
@@ -152,22 +162,22 @@ const SPAnalytics = () => {
         {
           name: "Positive",
           population: positive,
-          color: "#4CAF50",
-          legendFontColor: "#7F7F7F",
+          color: theme.colors.success,
+          legendFontColor: "#555555",
           legendFontSize: 12,
         },
         {
           name: "Neutral",
           population: neutral,
-          color: "#FFC107",
-          legendFontColor: "#7F7F7F",
+          color: theme.colors.warning,
+          legendFontColor: "#555555",
           legendFontSize: 12,
         },
         {
           name: "Negative",
           population: negative,
-          color: "#F44336",
-          legendFontColor: "#7F7F7F",
+          color: theme.colors.error,
+          legendFontColor: "#555555",
           legendFontSize: 12,
         },
       ]);
@@ -307,15 +317,39 @@ const SPAnalytics = () => {
   };
 
   const chartConfig = {
-    backgroundGradientFrom: theme.colors.background,
-    backgroundGradientTo: theme.colors.background,
-    color: (opacity = 1) => `rgba(81, 150, 244, ${opacity})`,
+    backgroundGradientFrom: "#FFFFFF",
+    backgroundGradientTo: "#FFFFFF",
+    color: (opacity = 1) =>
+      `rgba(${hexToRgb(theme.colors.primary)}, ${opacity})`,
     strokeWidth: 2,
     barPercentage: 0.5,
     decimalPlaces: 0,
+    useShadowColorFromDataset: false,
+    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    style: {
+      borderRadius: 16,
+    },
+    propsForDots: {
+      r: "5",
+      strokeWidth: "2",
+      stroke: theme.colors.primary,
+    },
     propsForLabels: {
       fontSize: 10,
     },
+  };
+
+  // Helper to convert hex to rgb
+  const hexToRgb = (hex) => {
+    // Remove the # if present
+    hex = hex.replace("#", "");
+
+    // Convert the hex values to decimal
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+
+    return `${r}, ${g}, ${b}`;
   };
 
   const renderChart = () => {
@@ -384,108 +418,134 @@ const SPAnalytics = () => {
           paddingLeft="15"
           absolute
         />
+        <View style={styles.reviewLegend}>
+          <View style={styles.legendItem}>
+            <ThumbsUp size={18} color={theme.colors.success} />
+            <Text style={styles.legendText}>Positive</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <Minus size={18} color={theme.colors.warning} />
+            <Text style={styles.legendText}>Neutral</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <ThumbsDown size={18} color={theme.colors.error} />
+            <Text style={styles.legendText}>Negative</Text>
+          </View>
+        </View>
       </View>
     );
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header title="Revenue Analytics" showBack />
-      <ScrollView style={styles.scrollView}>
-        {/* Time Frame Selector */}
+      <StatusBar barStyle="light-content" />
+      <LinearGradient
+        colors={[theme.colors.primary, theme.colors.primaryDark]}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Revenue Analytics</Text>
+          <Text style={styles.headerSubtitle}>
+            Track your business performance
+          </Text>
+        </View>
+      </LinearGradient>
+
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Time Frame Selector - Updated Modern Version */}
         <View style={styles.timeFrameContainer}>
-          <TouchableOpacity
-            style={[
-              styles.timeFrameButton,
-              timeFrame === "daily" && styles.activeTimeFrameButton,
-            ]}
-            onPress={() => setTimeFrame("daily")}
-          >
-            <Text
+          {["daily", "weekly", "monthly", "yearly"].map((period) => (
+            <TouchableOpacity
+              key={period}
               style={[
-                styles.timeFrameText,
-                timeFrame === "daily" && styles.activeTimeFrameText,
+                styles.timeFrameButton,
+                timeFrame === period && styles.activeTimeFrameButton,
               ]}
+              onPress={() => setTimeFrame(period)}
             >
-              Daily
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.timeFrameButton,
-              timeFrame === "weekly" && styles.activeTimeFrameButton,
-            ]}
-            onPress={() => setTimeFrame("weekly")}
-          >
-            <Text
-              style={[
-                styles.timeFrameText,
-                timeFrame === "weekly" && styles.activeTimeFrameText,
-              ]}
-            >
-              Weekly
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.timeFrameButton,
-              timeFrame === "monthly" && styles.activeTimeFrameButton,
-            ]}
-            onPress={() => setTimeFrame("monthly")}
-          >
-            <Text
-              style={[
-                styles.timeFrameText,
-                timeFrame === "monthly" && styles.activeTimeFrameText,
-              ]}
-            >
-              Monthly
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.timeFrameButton,
-              timeFrame === "yearly" && styles.activeTimeFrameButton,
-            ]}
-            onPress={() => setTimeFrame("yearly")}
-          >
-            <Text
-              style={[
-                styles.timeFrameText,
-                timeFrame === "yearly" && styles.activeTimeFrameText,
-              ]}
-            >
-              Yearly
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Revenue Chart */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Revenue Trends</Text>
-          {renderChart()}
-        </View>
-
-        {/* Review Chart */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Customer Reviews</Text>
-          {renderReviewChart()}
+              <Text
+                style={[
+                  styles.timeFrameText,
+                  timeFrame === period && {
+                    color: theme.colors.primary,
+                    fontWeight: "600",
+                  },
+                ]}
+              >
+                {period.charAt(0).toUpperCase() + period.slice(1)}
+              </Text>
+              {timeFrame === period && (
+                <View
+                  style={[
+                    styles.activeIndicator,
+                    { backgroundColor: theme.colors.primary },
+                  ]}
+                />
+              )}
+            </TouchableOpacity>
+          ))}
         </View>
 
         {/* Stats Summary */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
+            <View
+              style={[
+                styles.iconContainer,
+                { backgroundColor: theme.colors.primary + "15" },
+              ]}
+            >
+              <DollarSign size={22} color={theme.colors.primary} />
+            </View>
             <Text style={styles.statLabel}>Total Revenue</Text>
             <Text style={styles.statValue}>${totalRevenue.toFixed(2)}</Text>
           </View>
           <View style={styles.statCard}>
+            <View
+              style={[
+                styles.iconContainer,
+                { backgroundColor: theme.colors.success + "15" },
+              ]}
+            >
+              <Package size={22} color={theme.colors.success} />
+            </View>
             <Text style={styles.statLabel}>Completed Orders</Text>
             <Text style={styles.statValue}>{orderCount}</Text>
           </View>
           <View style={styles.statCard}>
+            <View
+              style={[
+                styles.iconContainer,
+                { backgroundColor: theme.colors.info + "15" },
+              ]}
+            >
+              <CreditCard size={22} color={theme.colors.info} />
+            </View>
             <Text style={styles.statLabel}>Avg. Order Value</Text>
             <Text style={styles.statValue}>${averageRevenue.toFixed(2)}</Text>
           </View>
+        </View>
+
+        {/* Revenue Chart */}
+        <View style={styles.section}>
+          <View style={styles.sectionTitleRow}>
+            <TrendingUp size={20} color={theme.colors.text} />
+            <Text style={styles.sectionTitle}>Revenue Trends</Text>
+          </View>
+          {renderChart()}
+        </View>
+
+        {/* Review Chart */}
+        <View style={styles.section}>
+          <View style={styles.sectionTitleRow}>
+            <ThumbsUp size={20} color={theme.colors.text} />
+            <Text style={styles.sectionTitle}>Customer Reviews</Text>
+          </View>
+          {renderReviewChart()}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -495,52 +555,101 @@ const SPAnalytics = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: "#FFFFFF",
+  },
+  header: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    paddingTop: 50,
+  },
+  headerContent: {
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.8)",
+    marginTop: 4,
   },
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 24,
+  },
   timeFrameContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
+    marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 8,
+    marginBottom: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: "#F0F0F0",
   },
   timeFrameButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    backgroundColor: "#EAEAEA",
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
   },
   activeTimeFrameButton: {
-    backgroundColor: "#5196F4",
+    backgroundColor: "transparent",
   },
   timeFrameText: {
-    fontSize: 14,
-    color: "#666666",
+    fontSize: 13,
+    color: "#888888",
+    fontWeight: "500",
   },
   activeTimeFrameText: {
-    color: "#FFFFFF",
+    color: "#D81B60",
     fontWeight: "600",
+  },
+  activeIndicator: {
+    position: "absolute",
+    bottom: 0,
+    height: 3,
+    width: "50%",
+    backgroundColor: "#D81B60",
+    borderRadius: 1.5,
   },
   section: {
     marginTop: 16,
     marginHorizontal: 16,
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: "#F0F0F0",
+  },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
     color: "#333333",
-    marginBottom: 16,
+    marginLeft: 8,
   },
   chartContainer: {
     alignItems: "center",
@@ -573,32 +682,57 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 16,
     marginHorizontal: 16,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   statCard: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginHorizontal: 4,
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: "#F0F0F0",
+  },
+  iconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
   },
   statLabel: {
     fontSize: 12,
     color: "#666666",
     marginBottom: 8,
+    textAlign: "center",
   },
   statValue: {
     fontSize: 16,
     fontWeight: "700",
     color: "#333333",
+  },
+  reviewLegend: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 12,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 10,
+  },
+  legendText: {
+    fontSize: 12,
+    color: "#555555",
+    marginLeft: 4,
   },
 });
 

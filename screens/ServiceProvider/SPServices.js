@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Modal,
   ScrollView,
+  StatusBar,
+  SafeAreaView,
 } from "react-native";
 import {
   collection,
@@ -23,6 +25,8 @@ import {
 } from "firebase/firestore";
 import { auth, db as firestore } from "../../firebaseConfig";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { useTheme } from "../../theme/ThemeContext";
 
 const SERVICE_CATEGORIES = [
   {
@@ -73,6 +77,7 @@ const SPServices = () => {
   const [editingService, setEditingService] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [subcategoryModalVisible, setSubcategoryModalVisible] = useState(false);
+  const theme = useTheme();
 
   useEffect(() => {
     fetchServices();
@@ -291,98 +296,151 @@ const SPServices = () => {
 
   const renderCategoryIcon = (category) => {
     return (
-      <Ionicons
-        name={category.icon}
-        size={24}
-        color="#333"
-        style={styles.categoryIcon}
-      />
+      <View
+        style={[
+          styles.categoryIconContainer,
+          { backgroundColor: theme.colors.primary + "15" },
+        ]}
+      >
+        <Ionicons
+          name={category.icon}
+          size={24}
+          color={theme.colors.primary}
+          style={styles.categoryIcon}
+        />
+      </View>
     );
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text>Loading services...</Text>
-      </View>
+      <SafeAreaView style={styles.centerContainer}>
+        <StatusBar barStyle="light-content" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={styles.loadingText}>Loading services...</Text>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Manage Services</Text>
-
-      <TouchableOpacity
-        style={styles.addServiceButton}
-        onPress={() => setSubcategoryModalVisible(true)}
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <LinearGradient
+        colors={[theme.colors.primary, theme.colors.primaryDark]}
+        style={styles.headerGradient}
       >
-        <Ionicons name="add-circle-outline" size={24} color="#fff" />
-        <Text style={styles.addServiceButtonText}>Add New Service</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.listTitle}>Your Services</Text>
-
-      {servicesList.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="list-outline" size={64} color="#ccc" />
-          <Text style={styles.emptyMessage}>No services added yet</Text>
-          <Text style={styles.emptySubtext}>
-            Add services to start receiving orders
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Manage Services</Text>
+          <Text style={styles.headerSubtitle}>
+            Add and customize your service offerings
           </Text>
         </View>
-      ) : (
-        <FlatList
-          data={servicesList}
-          keyExtractor={(item) => item.id}
-          style={styles.list}
-          renderItem={({ item }) => (
-            <View style={styles.serviceItem}>
-              <View style={styles.serviceInfo}>
-                <Text style={styles.serviceName}>{item.name}</Text>
-                <Text style={styles.serviceCategory}>
-                  {item.category} - {item.subcategory}
-                </Text>
-                <Text style={styles.servicePrice}>
-                  ${item.price.toFixed(2)}
-                </Text>
-              </View>
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  style={styles.editButton}
-                  onPress={() => startEditing(item)}
-                >
-                  <Ionicons name="create-outline" size={20} color="#333" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.removeButton}
-                  onPress={() => confirmRemove(item)}
-                >
-                  <Ionicons name="trash-outline" size={20} color="#f44336" />
-                </TouchableOpacity>
-              </View>
+      </LinearGradient>
+
+      <View style={styles.contentContainer}>
+        <TouchableOpacity
+          style={[
+            styles.addServiceButton,
+            { backgroundColor: theme.colors.primary },
+          ]}
+          onPress={() => setSubcategoryModalVisible(true)}
+        >
+          <Ionicons name="add-circle-outline" size={22} color="#fff" />
+          <Text style={styles.addServiceButtonText}>Add New Service</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.listTitle}>Your Services</Text>
+
+        {servicesList.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <View
+              style={[
+                styles.emptyIconCircle,
+                { backgroundColor: theme.colors.primary + "15" },
+              ]}
+            >
+              <Ionicons
+                name="list-outline"
+                size={50}
+                color={theme.colors.primary}
+              />
             </View>
-          )}
-        />
-      )}
+            <Text style={styles.emptyMessage}>No services added yet</Text>
+            <Text style={styles.emptySubtext}>
+              Add services to start receiving orders
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={servicesList}
+            keyExtractor={(item) => item.id}
+            style={styles.list}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            renderItem={({ item }) => (
+              <View style={styles.serviceItem}>
+                <View style={styles.serviceInfo}>
+                  <Text style={styles.serviceName}>{item.name}</Text>
+                  <Text style={styles.serviceCategory}>
+                    {item.category} - {item.subcategory}
+                  </Text>
+                  <View style={styles.priceContainer}>
+                    <Text style={styles.priceLabel}>Price:</Text>
+                    <Text style={styles.servicePrice}>
+                      ${item.price.toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    style={[
+                      styles.editButton,
+                      { backgroundColor: theme.colors.primary + "10" },
+                    ]}
+                    onPress={() => startEditing(item)}
+                  >
+                    <Ionicons
+                      name="create-outline"
+                      size={20}
+                      color={theme.colors.primary}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => confirmRemove(item)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#f44336" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          />
+        )}
+      </View>
 
       {/* Category Selection Modal */}
       <Modal
         transparent={true}
-        visible={subcategoryModalVisible}
+        visible={subcategoryModalVisible && !selectedCategory}
         animationType="slide"
         onRequestClose={() => setSubcategoryModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Service Category</Text>
+            <LinearGradient
+              colors={[theme.colors.primary, theme.colors.primaryDark]}
+              style={styles.modalGradientHeader}
+            >
+              <Text style={styles.modalGradientTitle}>
+                Select Service Category
+              </Text>
               <TouchableOpacity
                 onPress={() => setSubcategoryModalVisible(false)}
+                style={styles.modalCloseButton}
               >
-                <Ionicons name="close-outline" size={28} color="#333" />
+                <Ionicons name="close-outline" size={28} color="#FFFFFF" />
               </TouchableOpacity>
-            </View>
+            </LinearGradient>
 
             <ScrollView style={styles.categoryList}>
               {SERVICE_CATEGORIES.map((category) => (
@@ -404,7 +462,7 @@ const SPServices = () => {
                   <Ionicons
                     name="chevron-forward-outline"
                     size={20}
-                    color="#666"
+                    color={theme.colors.textLight}
                   />
                 </TouchableOpacity>
               ))}
@@ -422,22 +480,26 @@ const SPServices = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
+            <LinearGradient
+              colors={[theme.colors.primary, theme.colors.primaryDark]}
+              style={styles.modalGradientHeader}
+            >
               <TouchableOpacity
-                onPress={() => setSubcategoryModalVisible(false)}
+                onPress={() => setSelectedCategory(null)}
                 style={styles.backButton}
               >
-                <Ionicons name="arrow-back-outline" size={24} color="#333" />
+                <Ionicons name="arrow-back-outline" size={24} color="#FFFFFF" />
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>
+              <Text style={styles.modalGradientTitle}>
                 {selectedCategory?.name} Services
               </Text>
               <TouchableOpacity
                 onPress={() => setSubcategoryModalVisible(false)}
+                style={styles.modalCloseButton}
               >
-                <Ionicons name="close-outline" size={28} color="#333" />
+                <Ionicons name="close-outline" size={28} color="#FFFFFF" />
               </TouchableOpacity>
-            </View>
+            </LinearGradient>
 
             <ScrollView style={styles.subcategoryList}>
               {selectedCategory?.subcategories.map((subcategory) => (
@@ -450,7 +512,7 @@ const SPServices = () => {
                   <Ionicons
                     name="chevron-forward-outline"
                     size={20}
-                    color="#666"
+                    color={theme.colors.textLight}
                   />
                 </TouchableOpacity>
               ))}
@@ -468,14 +530,20 @@ const SPServices = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
+            <LinearGradient
+              colors={[theme.colors.primary, theme.colors.primaryDark]}
+              style={styles.modalGradientHeader}
+            >
+              <Text style={styles.modalGradientTitle}>
                 {isEditing ? "Update Service" : "Add Service"}
               </Text>
-              <TouchableOpacity onPress={closeModal}>
-                <Ionicons name="close-outline" size={28} color="#333" />
+              <TouchableOpacity
+                onPress={closeModal}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close-outline" size={28} color="#FFFFFF" />
               </TouchableOpacity>
-            </View>
+            </LinearGradient>
 
             <View style={styles.modalContent}>
               <View style={styles.selectedServiceInfo}>
@@ -492,19 +560,32 @@ const SPServices = () => {
                 </Text>
               </View>
 
-              <Text style={styles.priceLabel}>Enter Price (USD)</Text>
-              <TextInput
-                style={styles.priceInput}
-                placeholder="0.00"
-                value={servicePrice}
-                onChangeText={setServicePrice}
-                keyboardType="numeric"
-              />
+              <Text style={styles.priceInputLabel}>Enter Price (USD)</Text>
+              <View style={styles.priceInputContainer}>
+                <Text style={styles.currencySymbol}>$</Text>
+                <TextInput
+                  style={styles.priceInput}
+                  placeholder="0.00"
+                  value={servicePrice}
+                  onChangeText={setServicePrice}
+                  keyboardType="numeric"
+                  placeholderTextColor={theme.colors.textLight}
+                />
+              </View>
 
               <TouchableOpacity
-                style={styles.saveButton}
+                style={[
+                  styles.saveButton,
+                  { backgroundColor: theme.colors.primary },
+                ]}
                 onPress={isEditing ? updateService : addService}
               >
+                <Ionicons
+                  name={isEditing ? "save-outline" : "add-circle-outline"}
+                  size={20}
+                  color="#FFFFFF"
+                  style={styles.saveButtonIcon}
+                />
                 <Text style={styles.saveButtonText}>
                   {isEditing ? "Update Service" : "Add Service"}
                 </Text>
@@ -513,37 +594,62 @@ const SPServices = () => {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#ffffff",
   },
-  loadingContainer: {
+  headerGradient: {
+    paddingTop: 40,
+    paddingBottom: 20,
+    paddingHorizontal: 24,
+  },
+  headerContent: {
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#ffffff",
+    textAlign: "center",
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.8)",
+    marginTop: 4,
+  },
+  contentContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#FFFFFF",
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "600",
-    marginBottom: 24,
-    color: "#333333",
-    textAlign: "center",
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#666666",
   },
   addServiceButton: {
     flexDirection: "row",
-    backgroundColor: "#333333",
-    padding: 16,
-    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
+    height: 50,
+    borderRadius: 12,
     marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   addServiceButtonText: {
     color: "#fff",
@@ -552,13 +658,16 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   listTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "600",
     marginBottom: 16,
     color: "#333333",
   },
   list: {
-    width: "100%",
+    flex: 1,
+  },
+  listContent: {
+    paddingBottom: 16,
   },
   serviceItem: {
     flexDirection: "row",
@@ -571,9 +680,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
   },
   serviceInfo: {
     flex: 1,
@@ -587,12 +698,21 @@ const styles = StyleSheet.create({
   serviceCategory: {
     fontSize: 14,
     color: "#666666",
-    marginBottom: 4,
+    marginBottom: 6,
+  },
+  priceContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  priceLabel: {
+    fontSize: 14,
+    color: "#666666",
+    marginRight: 4,
   },
   servicePrice: {
-    fontSize: 15,
+    fontSize: 16,
     color: "#333333",
-    fontWeight: "500",
+    fontWeight: "600",
   },
   actionButtons: {
     flexDirection: "row",
@@ -601,6 +721,7 @@ const styles = StyleSheet.create({
   editButton: {
     padding: 8,
     marginRight: 8,
+    borderRadius: 8,
   },
   removeButton: {
     padding: 8,
@@ -609,19 +730,28 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 80,
+    marginTop: 60,
+  },
+  emptyIconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
   },
   emptyMessage: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#666",
-    marginTop: 16,
+    color: "#333",
+    marginTop: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: "#999",
+    color: "#777",
     marginTop: 8,
     textAlign: "center",
+    maxWidth: "80%",
   },
   modalOverlay: {
     flex: 1,
@@ -632,41 +762,49 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 30,
-    maxHeight: "80%",
+    overflow: "hidden",
+    maxHeight: "85%",
   },
-  modalHeader: {
+  modalGradientHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  modalGradientTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    flex: 1,
+    textAlign: "center",
+  },
+  modalCloseButton: {
+    padding: 4,
   },
   backButton: {
     padding: 4,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    flex: 1,
-    textAlign: "center",
   },
   modalContent: {
     padding: 20,
   },
   categoryList: {
     paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   categoryItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
   },
-  categoryIcon: {
+  categoryIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 16,
   },
   categoryTextContainer: {
@@ -676,14 +814,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
     color: "#333",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   subcategoryCount: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#666",
   },
   subcategoryList: {
     paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   subcategoryItem: {
     flexDirection: "row",
@@ -703,7 +842,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   selectedServiceLabel: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#666",
     width: 100,
   },
@@ -713,25 +852,50 @@ const styles = StyleSheet.create({
     color: "#333",
     flex: 1,
   },
-  priceLabel: {
-    fontSize: 16,
+  priceInputLabel: {
+    fontSize: 15,
     color: "#333",
     fontWeight: "500",
-    marginBottom: 8,
+    marginBottom: 10,
+    marginTop: 8,
   },
-  priceInput: {
+  priceInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
     borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    borderRadius: 12,
     marginBottom: 24,
+    paddingHorizontal: 16,
+    height: 56,
+    backgroundColor: "#F9F9F9",
+  },
+  currencySymbol: {
+    fontSize: 18,
+    fontWeight: "500",
+    color: "#333",
+    marginRight: 8,
+  },
+  priceInput: {
+    flex: 1,
+    fontSize: 18,
+    color: "#333",
+    height: 56,
   },
   saveButton: {
-    backgroundColor: "#333",
-    padding: 16,
-    borderRadius: 8,
+    flexDirection: "row",
+    height: 56,
+    borderRadius: 12,
+    justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  saveButtonIcon: {
+    marginRight: 8,
   },
   saveButtonText: {
     color: "#fff",
