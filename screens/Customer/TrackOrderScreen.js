@@ -813,58 +813,30 @@ const TrackOrderScreen = ({ route }) => {
           <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
           <Text style={styles.chatButtonText}>Chat with Service Provider</Text>
         </TouchableOpacity>
+
+        {orderData.status === ORDER_STATUS.DISPATCHED && (
+          <TouchableOpacity
+            style={[
+              styles.trackLocationButton,
+              { backgroundColor: theme.colors.info },
+            ]}
+            onPress={() =>
+              navigation.navigate("LiveTracking", {
+                orderId: orderId,
+                customerAddress: orderData.address,
+                dropoffTime: orderData.orderDropoff?.time,
+                serviceProviderName: providerData?.name || "Service Provider",
+                serviceProviderId: orderData.serviceProviderId,
+              })
+            }
+          >
+            <Ionicons name="location" size={20} color="#FFFFFF" />
+            <Text style={styles.trackLocationButtonText}>
+              Track Live Location
+            </Text>
+          </TouchableOpacity>
+        )}
       </Card>
-    );
-  };
-
-  // Render a debug control panel for testing status updates (only in dev mode)
-  const renderDebugPanel = () => {
-    if (!__DEV__ || !orderData) return null;
-
-    return (
-      <View
-        style={{
-          marginTop: 20,
-          padding: 10,
-          backgroundColor: "#f0f0f0",
-          borderRadius: 8,
-        }}
-      >
-        <Text style={{ fontWeight: "bold", marginBottom: 10 }}>
-          🛠️ DEV: Update Order Status
-        </Text>
-        <View
-          style={{
-            flexDirection: "row",
-            flexWrap: "wrap",
-            justifyContent: "space-between",
-          }}
-        >
-          {Object.values(ORDER_STATUS).map((status) => (
-            <TouchableOpacity
-              key={status}
-              style={{
-                backgroundColor:
-                  orderData.status === status ? "#4299E1" : "#ddd",
-                padding: 8,
-                borderRadius: 4,
-                margin: 4,
-                width: "48%",
-                alignItems: "center",
-              }}
-              onPress={() => updateOrderStatus(status)}
-            >
-              <Text
-                style={{
-                  color: orderData.status === status ? "white" : "black",
-                }}
-              >
-                {status}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
     );
   };
 
@@ -1076,8 +1048,25 @@ const TrackOrderScreen = ({ route }) => {
           </TouchableOpacity>
         )}
 
-        {/* Developer test panel */}
-        {renderDebugPanel()}
+        {orderData.status === ORDER_STATUS.DISPATCHED && (
+          <TouchableOpacity
+            style={styles.trackLocationButton}
+            onPress={() =>
+              navigation.navigate("LiveTracking", {
+                orderId: orderId,
+                customerAddress: orderData.address,
+                dropoffTime: orderData.orderDropoff?.time,
+                serviceProviderName: providerData?.name || "Service Provider",
+                serviceProviderId: orderData.serviceProviderId,
+              })
+            }
+          >
+            <Ionicons name="location" size={24} color="#fff" />
+            <Text style={styles.trackLocationButtonText}>
+              Track Live Location
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -1357,6 +1346,21 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "600",
+    marginLeft: 8,
+  },
+  trackLocationButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#38B2AC",
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+  },
+  trackLocationButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
     marginLeft: 8,
   },
 });

@@ -20,6 +20,7 @@ import EditProfileScreen from "./screens/Customer/EditProfile";
 import PlaceOrderScreen from "./screens/Customer/PlaceOrderScreen";
 import OrderScreen from "./screens/Customer/OrdersScreen";
 import TrackOrderScreen from "./screens/Customer/TrackOrderScreen";
+import LiveTrackingScreen from "./screens/Customer/LiveTrackingScreen";
 import CustomerFeedbackScreen from "./screens/Customer/RatingScreen";
 import MapScreen from "./screens/Customer/MapScreen";
 import FileComplaintScreen from "./screens/Customer/FileComplaint";
@@ -132,6 +133,11 @@ export default function App() {
                 <Stack.Screen
                   name="Track"
                   component={TrackOrderScreen}
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="LiveTracking"
+                  component={LiveTrackingScreen}
                   options={{ headerShown: false }}
                 />
                 <Stack.Screen
