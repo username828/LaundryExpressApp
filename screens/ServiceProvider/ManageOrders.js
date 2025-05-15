@@ -42,6 +42,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "../../theme/ThemeContext";
+import { Header } from "../../components/Header";
 
 // Order status constants
 const ORDER_STATUS = {
@@ -120,6 +121,22 @@ const ManageOrders = () => {
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
+      // For pick-up and delivery status changes, use the verification screen instead
+      if (newStatus === ORDER_STATUS.PICKED_UP) {
+        navigation.navigate("SPOrderVerificationScreen", {
+          orderId: orderId,
+          verificationStage: "pickup",
+        });
+        return;
+      } else if (newStatus === ORDER_STATUS.DELIVERED) {
+        navigation.navigate("SPOrderVerificationScreen", {
+          orderId: orderId,
+          verificationStage: "dropoff",
+        });
+        return;
+      }
+
+      // For other status changes, update directly
       const orderRef = doc(db, "orders", orderId);
       await updateDoc(orderRef, {
         status: newStatus,
@@ -258,6 +275,52 @@ const ManageOrders = () => {
 
     return (
       <View style={styles.actionContainer}>
+        {/* Add verification button for Pending orders (before pickup) */}
+        {order.status === ORDER_STATUS.PENDING && (
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              { backgroundColor: theme.colors.info },
+            ]}
+            onPress={() =>
+              navigation.navigate("SPOrderVerificationScreen", {
+                orderId: order.id,
+                verificationStage: "pickup",
+              })
+            }
+          >
+            <ShoppingBag
+              size={16}
+              color="#FFFFFF"
+              style={styles.actionButtonIcon}
+            />
+            <Text style={styles.actionButtonText}>Verify Pickup Items</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Add verification button for Dispatched orders (before delivery) */}
+        {order.status === ORDER_STATUS.DISPATCHED && (
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              { backgroundColor: theme.colors.info },
+            ]}
+            onPress={() =>
+              navigation.navigate("SPOrderVerificationScreen", {
+                orderId: order.id,
+                verificationStage: "dropoff",
+              })
+            }
+          >
+            <Package
+              size={16}
+              color="#FFFFFF"
+              style={styles.actionButtonIcon}
+            />
+            <Text style={styles.actionButtonText}>Verify Delivery Items</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={[
             styles.actionButton,

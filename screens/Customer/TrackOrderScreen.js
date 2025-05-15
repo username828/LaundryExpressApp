@@ -36,6 +36,16 @@ const ORDER_STATUS = {
   CANCELLED: "Cancelled",
 };
 
+// Map status constants to timestamp field names
+const STATUS_TIMESTAMP_MAP = {
+  [ORDER_STATUS.PENDING]: "orderPlacedAt",
+  [ORDER_STATUS.PICKED_UP]: "pickedUpAt",
+  [ORDER_STATUS.PROCESSING]: "processingAt",
+  [ORDER_STATUS.DISPATCHED]: "outForDeliveryAt",
+  [ORDER_STATUS.DELIVERED]: "deliveredAt",
+  [ORDER_STATUS.CANCELLED]: "cancelledAt",
+};
+
 const TrackOrderScreen = ({ route }) => {
   const theme = useTheme();
   const navigation = useNavigation();
@@ -57,30 +67,35 @@ const TrackOrderScreen = ({ route }) => {
       label: ORDER_STATUS.PENDING,
       icon: "checkmark-circle-outline",
       color: theme.colors.secondary,
+      timestamp: null,
     },
     {
       id: "pickedUp",
       label: ORDER_STATUS.PICKED_UP,
       icon: "cart",
       color: theme.colors.warning,
+      timestamp: null,
     },
     {
       id: "processing",
       label: ORDER_STATUS.PROCESSING,
       icon: "construct",
       color: theme.colors.info,
+      timestamp: null,
     },
     {
       id: "dispatched",
       label: ORDER_STATUS.DISPATCHED,
       icon: "bicycle",
       color: theme.colors.primary,
+      timestamp: null,
     },
     {
       id: "delivered",
       label: ORDER_STATUS.DELIVERED,
       icon: "checkmark-done-circle",
       color: theme.colors.success,
+      timestamp: null,
     },
   ];
 
@@ -150,6 +165,15 @@ const TrackOrderScreen = ({ route }) => {
       if (docSnapshot.exists()) {
         const data = docSnapshot.data();
         setOrderData(data);
+
+        // Log all order timestamps for debugging
+        setTimeout(() => logOrderTimestamps(), 500);
+
+        // Debug: Log all timestamp fields in the order data
+        console.log("Order data timestamps:");
+        Object.entries(STATUS_TIMESTAMP_MAP).forEach(([status, field]) => {
+          console.log(`${status}: ${field} = ${data[field] || "missing"}`);
+        });
 
         // Find the current step index - add safety check
         console.log("Current status from DB:", data.status);
@@ -229,8 +253,249 @@ const TrackOrderScreen = ({ route }) => {
     });
   };
 
+  // Format timestamp specifically for the timeline
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return "Unknown time";
+
+    try {
+      const date = new Date(timestamp);
+
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        console.log("Invalid date encountered:", timestamp);
+        return "Invalid date";
+      }
+
+      const timeStr = date.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+
+      const dateStr = date.toLocaleDateString("en-US", {
+        day: "numeric",
+        month: "short",
+      });
+
+      const relativeTime = getRelativeTime(timestamp);
+
+      return `${timeStr}, ${dateStr} (${relativeTime})`;
+    } catch (error) {
+      console.error("Error formatting timestamp:", error);
+      return "Date error";
+    }
+  };
+
+  // Add relative time to make it more user-friendly
+  const getRelativeTime = (timestamp) => {
+    try {
+      const now = new Date();
+      const date = new Date(timestamp);
+
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return "unknown time";
+      }
+
+      const diffTime = Math.abs(now - date);
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const diffHours = Math.floor(
+        (diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+      );
+
+      if (diffDays > 0) {
+        return diffDays === 1 ? "1 day ago" : `${diffDays} days ago`;
+      } else if (diffHours > 0) {
+        return diffHours === 1 ? "1 hour ago" : `${diffHours} hours ago`;
+      } else {
+        const diffMinutes = Math.floor(
+          (diffTime % (1000 * 60 * 60)) / (1000 * 60)
+        );
+        return diffMinutes <= 1 ? "just now" : `${diffMinutes} mins ago`;
+      }
+    } catch (error) {
+      console.error("Error calculating relative time:", error);
+      return "unknown time";
+    }
+  };
+
+  // Add function to update order status with proper timestamp
+  const updateOrderStatus = async (newStatus) => {
+    try {
+      const orderDocRef = doc(db, "orders", orderId);
+
+      // Get the appropriate timestamp field for this status
+      const timestampField = STATUS_TIMESTAMP_MAP[newStatus];
+
+      if (!timestampField) {
+        console.error(`No timestamp field found for status: ${newStatus}`);
+        return;
+      }
+
+      // Create an update object with the new status and timestamp
+      const updateData = {
+        status: newStatus,
+        [timestampField]: new Date().toISOString(), // Set current timestamp for this specific step
+      };
+
+      console.log(
+        `Updating order to ${newStatus} with timestamp field ${timestampField}`
+      );
+      await updateDoc(orderDocRef, updateData);
+
+      // The snapshot listener will update the UI, but we also log here
+      console.log(
+        `Order status updated to: ${newStatus} with timestamp at ${updateData[timestampField]}`
+      );
+
+      // Wait a moment for the snapshot to update, then log all timestamps
+      setTimeout(() => {
+        if (orderData) {
+          logOrderTimestamps();
+        }
+      }, 1000);
+    } catch (error) {
+      console.error("Error updating order status:", error);
+      Alert.alert("Error", "Failed to update order status. Please try again.");
+    }
+  };
+
+  // Add function to check which timestamp fields are populated
+  const getPopulatedTimestampFields = () => {
+    if (!orderData) return [];
+
+    return Object.entries(STATUS_TIMESTAMP_MAP)
+      .filter(([status, field]) => orderData[field])
+      .map(([status, field]) => ({
+        status,
+        field,
+        timestamp: orderData[field],
+        formattedTime: formatTimestamp(orderData[field]),
+      }));
+  };
+
+  // Add function to log timestamps for debugging
+  const logOrderTimestamps = () => {
+    console.log("\n=== ORDER TIMESTAMPS ===");
+    console.log(`Order ID: ${orderId}`);
+    console.log(`Current Status: ${orderData?.status || "unknown"}`);
+
+    const fields = getPopulatedTimestampFields();
+    if (fields.length === 0) {
+      console.log("No timestamps found in order data");
+    } else {
+      fields.forEach((item) => {
+        console.log(`${item.status}: ${item.formattedTime} [${item.field}]`);
+      });
+    }
+    console.log("=======================\n");
+  };
+
   const renderTimeline = () => {
     if (!orderData) return null;
+
+    // If order is cancelled, create a different timeline
+    if (orderData.status === ORDER_STATUS.CANCELLED) {
+      const cancelledSteps = [
+        {
+          id: "ordered",
+          label: ORDER_STATUS.PENDING,
+          icon: "checkmark-circle-outline",
+          color: theme.colors.secondary,
+        },
+        {
+          id: "cancelled",
+          label: ORDER_STATUS.CANCELLED,
+          icon: "close-circle-outline",
+          color: "#F56565",
+        },
+      ];
+
+      return (
+        <View style={styles.timelineContainer}>
+          {cancelledSteps.map((step, index) => {
+            const isCompleted = true; // All steps are completed in a cancelled order
+            const isActive = index === 1; // The cancelled step is active
+            const isLast = index === cancelledSteps.length - 1;
+
+            // Get timestamp for this step
+            let stepTimestamp = "";
+            const timestampField = STATUS_TIMESTAMP_MAP[step.label];
+
+            // Always show a timestamp for each step in cancelled orders
+            if (orderData[timestampField]) {
+              // Use the actual timestamp from the database
+              stepTimestamp = formatTimestamp(orderData[timestampField]);
+            } else if (index === 0 && orderData.createdAt) {
+              // For the order placed step, use the creation time
+              stepTimestamp = formatTimestamp(orderData.createdAt);
+            } else if (
+              index === 1 &&
+              !orderData.cancelledAt &&
+              orderData.createdAt
+            ) {
+              // If no specific cancelled timestamp, use "After" with creation time
+              stepTimestamp = "After: " + formatTimestamp(orderData.createdAt);
+            }
+
+            return (
+              <View key={step.id} style={styles.stepRow}>
+                <View style={styles.stepIconContainer}>
+                  <View
+                    style={[
+                      styles.stepIcon,
+                      isActive && { backgroundColor: "#F56565" },
+                      isCompleted && !isActive && styles.completedStepIcon,
+                    ]}
+                  >
+                    <Ionicons
+                      name={step.icon}
+                      size={24}
+                      color={isActive || isCompleted ? "#fff" : "#999"}
+                    />
+                  </View>
+                  {!isLast && <View style={styles.lineContainer} />}
+                </View>
+
+                <View style={styles.stepTextContainer}>
+                  <Text style={styles.stepLabel}>{step.label}</Text>
+
+                  {/* Timestamp info */}
+                  {stepTimestamp ? (
+                    <Text style={styles.timestampText}>
+                      {stepTimestamp}
+                      {__DEV__ && (
+                        <Text style={{ fontSize: 10, color: "#718096" }}>
+                          {` (${STATUS_TIMESTAMP_MAP[step.label]})`}
+                        </Text>
+                      )}
+                    </Text>
+                  ) : (
+                    __DEV__ && (
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          color: "#718096",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        No timestamp for {STATUS_TIMESTAMP_MAP[step.label]}
+                      </Text>
+                    )
+                  )}
+
+                  {isActive && (
+                    <Text style={[styles.activeText, { color: "#F56565" }]}>
+                      Order was cancelled
+                    </Text>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      );
+    }
 
     const currentStepIndex = allSteps.findIndex(
       (step) => step.label === currentStep
@@ -244,16 +509,38 @@ const TrackOrderScreen = ({ route }) => {
           const isNext = index === currentStepIndex + 1;
           const isLast = index === allSteps.length - 1;
 
+          // Get timestamp for this step
+          let stepTimestamp = "";
+          const timestampField = STATUS_TIMESTAMP_MAP[step.label];
+
+          if (orderData[timestampField]) {
+            // Use the actual timestamp from the database
+            stepTimestamp = formatTimestamp(orderData[timestampField]);
+          } else if (index === 0 && orderData.createdAt) {
+            // For the order placed step, use the creation time
+            stepTimestamp = formatTimestamp(orderData.createdAt);
+          } else if (isCompleted || isActive) {
+            // For completed or active steps without timestamps
+            stepTimestamp = isActive ? "In progress" : "Time not recorded";
+          } else {
+            // For future steps
+            stepTimestamp = "Not started yet";
+          }
+
           return (
             <View key={step.id} style={styles.stepRow}>
               <View style={styles.stepIconContainer}>
                 <View
-                  style={[styles.stepIcon, isActive && styles.activeStepIcon]}
+                  style={[
+                    styles.stepIcon,
+                    isActive && styles.activeStepIcon,
+                    isCompleted && styles.completedStepIcon,
+                  ]}
                 >
                   <Ionicons
                     name={step.icon}
                     size={24}
-                    color={isActive ? "#fff" : "#999"}
+                    color={isActive || isCompleted ? "#fff" : "#999"}
                   />
                 </View>
                 {!isLast && <View style={styles.lineContainer} />}
@@ -261,9 +548,35 @@ const TrackOrderScreen = ({ route }) => {
 
               <View style={styles.stepTextContainer}>
                 <Text style={styles.stepLabel}>{step.label}</Text>
+
+                {/* Timestamp info */}
+                {stepTimestamp ? (
+                  <Text style={styles.timestampText}>
+                    {stepTimestamp}
+                    {__DEV__ && (
+                      <Text style={{ fontSize: 10, color: "#718096" }}>
+                        {` (${STATUS_TIMESTAMP_MAP[step.label]})`}
+                      </Text>
+                    )}
+                  </Text>
+                ) : (
+                  __DEV__ && (
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        color: "#718096",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      No timestamp for {STATUS_TIMESTAMP_MAP[step.label]}
+                    </Text>
+                  )
+                )}
+
                 {isActive && (
                   <Text style={styles.activeText}>Currently in progress</Text>
                 )}
+
                 {isNext && <Text style={styles.nextText}>Next step</Text>}
               </View>
             </View>
@@ -284,10 +597,8 @@ const TrackOrderScreen = ({ route }) => {
         style: "destructive",
         onPress: async () => {
           try {
-            const orderDocRef = doc(db, "orders", orderId);
-            await updateDoc(orderDocRef, {
-              status: ORDER_STATUS.CANCELLED,
-            });
+            // Use the updateOrderStatus function to update status and set timestamp
+            await updateOrderStatus(ORDER_STATUS.CANCELLED);
             Alert.alert(
               "Order Cancelled",
               "Your order has been cancelled successfully."
@@ -506,6 +817,57 @@ const TrackOrderScreen = ({ route }) => {
     );
   };
 
+  // Render a debug control panel for testing status updates (only in dev mode)
+  const renderDebugPanel = () => {
+    if (!__DEV__ || !orderData) return null;
+
+    return (
+      <View
+        style={{
+          marginTop: 20,
+          padding: 10,
+          backgroundColor: "#f0f0f0",
+          borderRadius: 8,
+        }}
+      >
+        <Text style={{ fontWeight: "bold", marginBottom: 10 }}>
+          🛠️ DEV: Update Order Status
+        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            justifyContent: "space-between",
+          }}
+        >
+          {Object.values(ORDER_STATUS).map((status) => (
+            <TouchableOpacity
+              key={status}
+              style={{
+                backgroundColor:
+                  orderData.status === status ? "#4299E1" : "#ddd",
+                padding: 8,
+                borderRadius: 4,
+                margin: 4,
+                width: "48%",
+                alignItems: "center",
+              }}
+              onPress={() => updateOrderStatus(status)}
+            >
+              <Text
+                style={{
+                  color: orderData.status === status ? "white" : "black",
+                }}
+              >
+                {status}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView
@@ -592,39 +954,7 @@ const TrackOrderScreen = ({ route }) => {
           <Text style={styles.orderStatus}>{orderData.status}</Text>
         </View>
 
-        <View style={styles.timelineContainer}>
-          {allSteps.map((step, index) => {
-            const isCompleted = index <= currentStepIndex;
-            const isActive = index === currentStepIndex;
-            const isNext = index === currentStepIndex + 1;
-            const isLast = index === allSteps.length - 1;
-
-            return (
-              <View key={step.id} style={styles.stepRow}>
-                <View style={styles.stepIconContainer}>
-                  <View
-                    style={[styles.stepIcon, isActive && styles.activeStepIcon]}
-                  >
-                    <Ionicons
-                      name={step.icon}
-                      size={24}
-                      color={isActive ? "#fff" : "#999"}
-                    />
-                  </View>
-                  {!isLast && <View style={styles.lineContainer} />}
-                </View>
-
-                <View style={styles.stepTextContainer}>
-                  <Text style={styles.stepLabel}>{step.label}</Text>
-                  {isActive && (
-                    <Text style={styles.activeText}>Currently in progress</Text>
-                  )}
-                  {isNext && <Text style={styles.nextText}>Next step</Text>}
-                </View>
-              </View>
-            );
-          })}
-        </View>
+        {renderTimeline()}
 
         <Text style={styles.sectionTitle}>Order Details</Text>
 
@@ -675,7 +1005,7 @@ const TrackOrderScreen = ({ route }) => {
 
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalAmount}>
+          <Text style={[styles.totalAmount, { color: theme.colors.primary }]}>
             $
             {hasMultipleServices
               ? orderData.totalPrice.toFixed(2)
@@ -745,6 +1075,9 @@ const TrackOrderScreen = ({ route }) => {
             <Text style={styles.cancelButtonText}>Cancel Order</Text>
           </TouchableOpacity>
         )}
+
+        {/* Developer test panel */}
+        {renderDebugPanel()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -807,7 +1140,7 @@ const styles = StyleSheet.create({
   },
   stepRow: {
     flexDirection: "row",
-    marginBottom: 24,
+    marginBottom: 36,
   },
   stepIconContainer: {
     alignItems: "center",
@@ -824,22 +1157,38 @@ const styles = StyleSheet.create({
   activeStepIcon: {
     backgroundColor: "#4299E1",
   },
+  completedStepIcon: {
+    backgroundColor: "#48BB78",
+  },
   lineContainer: {
     width: 2,
-    height: 32,
+    height: 44,
     backgroundColor: "#E2E8F0",
     marginTop: 8,
-    marginLeft: 19, // Center the line with the icon
+    marginLeft: 19,
   },
   stepTextContainer: {
     flex: 1,
     justifyContent: "center",
+    minHeight: 70,
   },
   stepLabel: {
     fontSize: 16,
     fontWeight: "500",
     color: "#2D3748",
     marginBottom: 4,
+  },
+  timestampText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#4A5568",
+    marginBottom: 4,
+    marginTop: 2,
+    backgroundColor: "#F7FAFC",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    alignSelf: "flex-start",
   },
   activeText: {
     fontSize: 14,

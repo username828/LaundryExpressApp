@@ -36,7 +36,7 @@ export const OrderStatusProvider = ({ children }) => {
     });
 
     return () => unsubscribe();
-  }, [user,orders]);
+  }, [user, orders]);
 
   const showOrderUpdateToast = (order) => {
     Toast.show({
@@ -46,9 +46,7 @@ export const OrderStatusProvider = ({ children }) => {
       visibilityTime: 4000,
       autoHide: true,
     });
-
   };
-
 
   return (
     <OrderStatusContext.Provider value={{ orders }}>

@@ -181,6 +181,14 @@ const HomeScreen = () => {
   const [availableSubcategories, setAvailableSubcategories] = useState([]);
   const [ratingModalVisible, setRatingModalVisible] = useState(false);
 
+  // Price filter states
+  const [priceFilter, setPriceFilter] = useState("All");
+  const [priceModalVisible, setPriceModalVisible] = useState(false);
+
+  // Distance filter states
+  const [distanceFilter, setDistanceFilter] = useState("All");
+  const [distanceModalVisible, setDistanceModalVisible] = useState(false);
+
   const [favorites, setFavorites] = useState([]);
   const { currentAddress, setCurrentAddress } = useContext(AddressContext); // Access global address state//useState("Loading Location...");
 
@@ -336,7 +344,27 @@ const HomeScreen = () => {
       );
     }
 
-    // Apply location-based calculations and sorting
+    // Apply price filter
+    if (priceFilter !== "All") {
+      filtered = filtered.filter((provider) => {
+        // Check if provider has any service within the price range
+        return provider.services?.some((service) => {
+          const price = service.price || 0;
+          switch (priceFilter) {
+            case "$":
+              return price >= 0 && price <= 10;
+            case "$$":
+              return price > 10 && price <= 20;
+            case "$$$":
+              return price > 20;
+            default:
+              return true;
+          }
+        });
+      });
+    }
+
+    // Apply location-based calculations
     const userLat = selectedLocation?.latitude || livelocation?.latitude;
     const userLong = selectedLocation?.longitude || livelocation?.longitude;
 
@@ -357,6 +385,23 @@ const HomeScreen = () => {
         return { ...provider, distance: Infinity }; // If no location, set to high distance
       });
 
+      // Apply distance filter if selected
+      if (distanceFilter !== "All") {
+        filtered = filtered.filter((provider) => {
+          const providerDistance = provider.distance || Infinity;
+          switch (distanceFilter) {
+            case "Near":
+              return providerDistance >= 0 && providerDistance <= 3;
+            case "Medium":
+              return providerDistance > 3 && providerDistance <= 7;
+            case "Far":
+              return providerDistance > 7;
+            default:
+              return true;
+          }
+        });
+      }
+
       // Sort by distance
       filtered.sort((a, b) => a.distance - b.distance);
     }
@@ -371,6 +416,8 @@ const HomeScreen = () => {
     livelocation,
     selectedCategory,
     selectedSubcategory,
+    priceFilter,
+    distanceFilter,
   ]);
 
   // Load favorites from AsyncStorage
@@ -441,6 +488,28 @@ const HomeScreen = () => {
   const handleRatingSelect = (rating) => {
     setMinRating(rating);
     setRatingModalVisible(false);
+  };
+
+  // Open price selection modal
+  const openPriceModal = () => {
+    setPriceModalVisible(true);
+  };
+
+  // Select a price range
+  const handlePriceSelect = (price) => {
+    setPriceFilter(price);
+    setPriceModalVisible(false);
+  };
+
+  // Open distance selection modal
+  const openDistanceModal = () => {
+    setDistanceModalVisible(true);
+  };
+
+  // Select a distance range
+  const handleDistanceSelect = (distance) => {
+    setDistanceFilter(distance);
+    setDistanceModalVisible(false);
   };
 
   // Location handling
@@ -530,7 +599,9 @@ const HomeScreen = () => {
   const isFilterActive =
     selectedCategory !== "All" ||
     selectedSubcategory !== "All" ||
-    minRating !== "All";
+    minRating !== "All" ||
+    priceFilter !== "All" ||
+    distanceFilter !== "All";
 
   return (
     <SafeAreaProvider>
@@ -650,6 +721,66 @@ const HomeScreen = () => {
               </Text>
             </TouchableOpacity>
 
+            {/* Price Filter Button */}
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                priceFilter !== "All" && [
+                  styles.filterButtonActive,
+                  { backgroundColor: theme.colors.primary },
+                ],
+              ]}
+              onPress={openPriceModal}
+            >
+              <Ionicons
+                name="cash-outline"
+                size={18}
+                color={
+                  priceFilter !== "All"
+                    ? theme.colors.textLight
+                    : theme.colors.textPrimary
+                }
+              />
+              <Text
+                style={[
+                  styles.filterButtonText,
+                  priceFilter !== "All" && styles.filterButtonTextActive,
+                ]}
+              >
+                {priceFilter === "All" ? "Price" : priceFilter}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Distance Filter Button */}
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                distanceFilter !== "All" && [
+                  styles.filterButtonActive,
+                  { backgroundColor: theme.colors.primary },
+                ],
+              ]}
+              onPress={openDistanceModal}
+            >
+              <Ionicons
+                name="navigate-outline"
+                size={18}
+                color={
+                  distanceFilter !== "All"
+                    ? theme.colors.textLight
+                    : theme.colors.textPrimary
+                }
+              />
+              <Text
+                style={[
+                  styles.filterButtonText,
+                  distanceFilter !== "All" && styles.filterButtonTextActive,
+                ]}
+              >
+                {distanceFilter === "All" ? "Distance" : distanceFilter}
+              </Text>
+            </TouchableOpacity>
+
             {isFilterActive && (
               <TouchableOpacity
                 style={[styles.clearButton, { color: theme.colors.secondary }]}
@@ -657,6 +788,8 @@ const HomeScreen = () => {
                   setSelectedCategory("All");
                   setSelectedSubcategory("All");
                   setMinRating("All");
+                  setPriceFilter("All");
+                  setDistanceFilter("All");
                 }}
               >
                 <Text
@@ -672,36 +805,9 @@ const HomeScreen = () => {
           </View>
         </View>
 
-        {selectedCategory !== "All" && selectedSubcategory !== "All" && (
-          <View style={styles.activeFiltersContainer}>
-            <View
-              style={[
-                styles.activeFilterTag,
-                { backgroundColor: `${theme.colors.primary}15` },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.activeFilterTagText,
-                  { color: theme.colors.primary },
-                ]}
-              >
-                {selectedCategory}: {selectedSubcategory}
-              </Text>
-              <TouchableOpacity onPress={() => setSelectedSubcategory("All")}>
-                <Ionicons
-                  name="close-circle"
-                  size={16}
-                  color={theme.colors.primary}
-                  style={styles.removeFilterIcon}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {minRating !== "All" && (
-          <View style={styles.activeFiltersContainer}>
+        {/* Active filters */}
+        <View style={styles.activeFiltersContainer}>
+          {minRating !== "All" && (
             <View
               style={[
                 styles.activeFilterTag,
@@ -725,8 +831,94 @@ const HomeScreen = () => {
                 />
               </TouchableOpacity>
             </View>
-          </View>
-        )}
+          )}
+
+          {selectedCategory !== "All" && selectedSubcategory !== "All" && (
+            <View
+              style={[
+                styles.activeFilterTag,
+                { backgroundColor: `${theme.colors.primary}15` },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.activeFilterTagText,
+                  { color: theme.colors.primary },
+                ]}
+              >
+                {selectedCategory}: {selectedSubcategory}
+              </Text>
+              <TouchableOpacity onPress={() => setSelectedSubcategory("All")}>
+                <Ionicons
+                  name="close-circle"
+                  size={16}
+                  color={theme.colors.primary}
+                  style={styles.removeFilterIcon}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Price Active Filter Tag */}
+          {priceFilter !== "All" && (
+            <View
+              style={[
+                styles.activeFilterTag,
+                { backgroundColor: `${theme.colors.primary}15` },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.activeFilterTagText,
+                  { color: theme.colors.primary },
+                ]}
+              >
+                Price: {priceFilter}
+                {priceFilter === "$" && " (0-10)"}
+                {priceFilter === "$$" && " (10-20)"}
+                {priceFilter === "$$$" && " (20-40)"}
+              </Text>
+              <TouchableOpacity onPress={() => setPriceFilter("All")}>
+                <Ionicons
+                  name="close-circle"
+                  size={16}
+                  color={theme.colors.primary}
+                  style={styles.removeFilterIcon}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Distance Active Filter Tag */}
+          {distanceFilter !== "All" && (
+            <View
+              style={[
+                styles.activeFilterTag,
+                { backgroundColor: `${theme.colors.primary}15` },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.activeFilterTagText,
+                  { color: theme.colors.primary },
+                ]}
+              >
+                Distance: {distanceFilter}
+                {distanceFilter === "Near" && " (0-3 km)"}
+                {distanceFilter === "Medium" && " (3-7 km)"}
+                {distanceFilter === "Far" && " (>7 km)"}
+              </Text>
+              <TouchableOpacity onPress={() => setDistanceFilter("All")}>
+                <Ionicons
+                  name="close-circle"
+                  size={16}
+                  color={theme.colors.primary}
+                  style={styles.removeFilterIcon}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
 
         <View style={styles.providersListContainer}>
           <Text
@@ -1007,6 +1199,132 @@ const HomeScreen = () => {
                             <Text style={styles.plusSign}>+</Text>
                           )}
                         </View>
+                      )}
+                      <Text
+                        style={[
+                          styles.modalItemText,
+                          { color: theme.colors.textPrimary },
+                        ]}
+                      >
+                        {item.name}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          </View>
+        </Modal>
+
+        {/* Price Selection Modal */}
+        <Modal
+          transparent={true}
+          visible={priceModalVisible}
+          animationType="slide"
+          onRequestClose={() => setPriceModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContainer, { ...theme.shadows.large }]}>
+              <LinearGradient
+                colors={[theme.colors.primary, theme.colors.primaryDark]}
+                style={styles.modalHeader}
+              >
+                <Text style={styles.modalTitle}>Select Price Range</Text>
+                <TouchableOpacity onPress={() => setPriceModalVisible(false)}>
+                  <Ionicons
+                    name="close-outline"
+                    size={28}
+                    color={theme.colors.textLight}
+                  />
+                </TouchableOpacity>
+              </LinearGradient>
+
+              <FlatList
+                data={[
+                  { id: "all", name: "All Prices", value: "All" },
+                  { id: "price-1", name: "$ (0-10)", value: "$" },
+                  { id: "price-2", name: "$$ (10-20)", value: "$$" },
+                  { id: "price-3", name: "$$$ (20-40)", value: "$$$" },
+                ]}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.modalItem}
+                    onPress={() => handlePriceSelect(item.value)}
+                  >
+                    <View style={styles.priceModalItem}>
+                      <Text
+                        style={[
+                          styles.modalItemText,
+                          { color: theme.colors.textPrimary },
+                        ]}
+                      >
+                        {item.name}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          </View>
+        </Modal>
+
+        {/* Distance Selection Modal */}
+        <Modal
+          transparent={true}
+          visible={distanceModalVisible}
+          animationType="slide"
+          onRequestClose={() => setDistanceModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContainer, { ...theme.shadows.large }]}>
+              <LinearGradient
+                colors={[theme.colors.primary, theme.colors.primaryDark]}
+                style={styles.modalHeader}
+              >
+                <Text style={styles.modalTitle}>Select Distance</Text>
+                <TouchableOpacity
+                  onPress={() => setDistanceModalVisible(false)}
+                >
+                  <Ionicons
+                    name="close-outline"
+                    size={28}
+                    color={theme.colors.textLight}
+                  />
+                </TouchableOpacity>
+              </LinearGradient>
+
+              <FlatList
+                data={[
+                  { id: "all", name: "All Distances", value: "All" },
+                  { id: "distance-near", name: "Near (0-3 km)", value: "Near" },
+                  {
+                    id: "distance-medium",
+                    name: "Medium (3-7 km)",
+                    value: "Medium",
+                  },
+                  { id: "distance-far", name: "Far (>7 km)", value: "Far" },
+                ]}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.modalItem}
+                    onPress={() => handleDistanceSelect(item.value)}
+                  >
+                    <View style={styles.distanceModalItem}>
+                      {item.value !== "All" && (
+                        <Ionicons
+                          name={
+                            item.value === "Near"
+                              ? "location"
+                              : item.value === "Medium"
+                              ? "navigate"
+                              : "map"
+                          }
+                          size={20}
+                          color={theme.colors.primary}
+                          style={{ marginRight: 10 }}
+                        />
                       )}
                       <Text
                         style={[
@@ -1314,6 +1632,14 @@ const styles = StyleSheet.create({
   plusSign: {
     marginLeft: 4,
     color: "#666",
+  },
+  priceModalItem: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  distanceModalItem: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 });
 

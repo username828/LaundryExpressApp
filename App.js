@@ -40,6 +40,8 @@ import SPMapScreen from "./screens/ServiceProvider/SPMapScreen";
 import ServiceProviderComplaints from "./screens/ServiceProvider/ManageComplaints";
 import SPAnalytics from "./screens/ServiceProvider/SPAnalytics";
 import SPChat from "./screens/ServiceProvider/Chat";
+// Comment out the problematic import until we fix the file
+import SPOrderVerificationScreen from "./screens/ServiceProvider/SPOrderVerificationScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -216,6 +218,13 @@ export default function App() {
                 <Stack.Screen
                   name="SPChat"
                   component={SPChat}
+                  options={{ headerShown: false }}
+                />
+
+                {/* Comment out the problematic import until we fix the file */}
+                <Stack.Screen
+                  name="SPOrderVerificationScreen"
+                  component={SPOrderVerificationScreen}
                   options={{ headerShown: false }}
                 />
               </Stack.Navigator>
